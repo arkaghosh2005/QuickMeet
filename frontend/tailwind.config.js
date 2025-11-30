@@ -7,7 +7,9 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
-      screens: {}
+      screens: {
+        'xs' : '375px',
+      }
     },
   },
   content: [
