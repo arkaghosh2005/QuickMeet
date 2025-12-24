@@ -6,7 +6,7 @@ import httpStatus from "http-status";
 export const AuthContext = createContext({});
 
 const client = axios.create({
-  baseURL: "http://localhost:3000/api/v1/users",
+  baseURL: `${import.meta.env.VITE_SERVER_URL}/v1/users`,
 });
 
 export const useAuth = () => {
