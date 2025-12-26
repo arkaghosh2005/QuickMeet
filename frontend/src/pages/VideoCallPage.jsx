@@ -760,7 +760,6 @@ const VideoCallPage = () => {
         }
         setVideo(newVideo);
 
-        // ✅ Notify backend of state change
         if (socketRef.current) {
             socketRef.current.emit('update-media-state', { video: newVideo, audio: audio });
         }
@@ -775,7 +774,6 @@ const VideoCallPage = () => {
         }
         setAudio(newAudio);
 
-        // ✅ Notify backend of state change
         if (socketRef.current) {
             socketRef.current.emit('update-media-state', { video: video, audio: newAudio });
         }
@@ -865,11 +863,10 @@ const VideoCallPage = () => {
         setNewMessages(0);
         setMessages([]);
 
-        window.location.href = "/meeting-entry"
+        window.location.href = "/"
     }
 
     const addMessage = (data, sender, socketIdSender) => {
-        // Don't add if it's our own message (we already added it locally)
         if (socketIdSender === socketIdRef.current) {
             return;
         }
@@ -889,7 +886,6 @@ const VideoCallPage = () => {
     const handleSendMessage = (message) => {
         if (socketRef.current && message.trim()) {
             socketRef.current.emit('chat-message', message, initialState.displayName);
-            // Add locally for instant display
             setMessages((prevMessages) => [
                 ...prevMessages,
                 {

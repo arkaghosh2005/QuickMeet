@@ -224,7 +224,7 @@ const PreCallPage = () => {
                 <div className="text-center mb-10">
                     <Button
                         variant="ghost"
-                        onClick={() => window.location.href = "/meeting-entry"}
+                        onClick={() => window.location.href = "/"}
                         className="absolute top-4 left-4 text-white hover:bg-gray-800"
                     >
                         <ArrowLeft className="w-4 h-4 mr-2" />

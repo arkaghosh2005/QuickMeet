@@ -160,7 +160,7 @@ const LandingPage = () => {
                                 className="w-full"
                                 size="lg"
                             >
-                                Continue as Guest (Unavailable)
+                                Continue as Guest
                             </Button>
                         </div>
 

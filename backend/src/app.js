@@ -14,8 +14,19 @@ const app = express();
 const server = createServer(app);
 const io = connectToSocket(server);
 
+// Parse CLIENT_URL to support multiple origins (comma-separated) or wildcard
+const getAllowedOrigins = () => {
+    const clientUrl = process.env.CLIENT_URL;
+    if (!clientUrl || clientUrl === "*") return "*";
+    return clientUrl.split(",").map(url => url.trim());
+};
+
 app.set("port", (process.env.PORT));
-app.use(cors());
+app.use(cors({
+    origin: getAllowedOrigins(),
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+}));
 app.use(express.json({ limit: "40kb" }));
 app.use(express.urlencoded({ limit: "40kb", extended: true }));
 app.use("/v1/users", userRoutes);
