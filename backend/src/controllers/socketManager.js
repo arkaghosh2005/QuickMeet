@@ -9,23 +9,15 @@ let messages = {}
 let timeOnline = {}
 
 export const connectToSocket = (server) => {
-    // Parse CLIENT_URL to support multiple origins (comma-separated) or wildcard
     const clientUrl = process.env.CLIENT_URL;
-    console.log("CLIENT_URL from env:", clientUrl);
-    
-    let allowedOrigins;
-    if (!clientUrl || clientUrl === "*") {
-        allowedOrigins = "*";
-    } else {
-        allowedOrigins = clientUrl.split(",").map(url => url.trim());
+    if (!clientUrl) {
+        throw new Error("CLIENT_URL environment variable is required!");
     }
-    
-    console.log("Allowed origins for CORS:", allowedOrigins);
 
     // Create a new Socket.io server
     const io = new Server(server, {
         cors: {
-            origin: allowedOrigins,
+            origin: clientUrl.split(",").map(url => url.trim()),
             methods: ["GET", "POST"],
             allowedHeaders: ["Content-Type"],
             credentials: true
@@ -64,14 +56,10 @@ export const connectToSocket = (server) => {
             });
 
             const existingParticipants = [...connections[path]];
-
-            console.log(connections)
-            // Send user-joined event to all participants including new user
             existingParticipants.forEach((participant) => {
                 io.to(participant.socketId).emit("user-joined", socket.id, connections[path]);
             });
 
-            // Send chat history to new user
             if (messages[path] !== undefined) {
                 for (let a = 0; a < messages[path].length; ++a) {
                     io.to(socket.id).emit("chat-message", messages[path][a]['data'],
@@ -80,7 +68,6 @@ export const connectToSocket = (server) => {
             }
         })
 
-        // ✅ NEW: Handle audio/video state updates
         socket.on("update-media-state", (data) => {
             const { video, audio } = data;
 
@@ -91,11 +78,7 @@ export const connectToSocket = (server) => {
                 if (userIndex !== -1) {
                     // Update user's media state
                     connections[roomKey][userIndex].video = video;
-                    connections[roomKey][userIndex].audio = audio;
-
-                    console.log(`Media state updated for ${socket.id}:`, { video, audio });
-
-                    // Notify all other participants in the room
+                    connections[roomKey][userIndex].audio = audio
                     roomUsers.forEach((user) => {
                         if (user.socketId !== socket.id) {
                             io.to(user.socketId).emit("user-media-state-changed", socket.id, { video, audio });
@@ -193,7 +176,6 @@ export const connectToSocket = (server) => {
                 }
             }
 
-            // Clean up timeOnline
             delete timeOnline[socket.id];
         })
     })

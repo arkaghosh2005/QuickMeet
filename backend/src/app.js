@@ -13,22 +13,16 @@ import userRoutes from "./routes/users.routes.js";
 const app = express();
 const server = createServer(app);
 const io = connectToSocket(server);
-
-// Parse CLIENT_URL to support multiple origins (comma-separated) or wildcard
 const clientUrl = process.env.CLIENT_URL;
-console.log("CLIENT_URL for Express CORS:", clientUrl);
 
-let allowedOrigins;
-if (!clientUrl || clientUrl === "*") {
-    allowedOrigins = "*";
-} else {
-    allowedOrigins = clientUrl.split(",").map(url => url.trim());
+if (!clientUrl) {
+    throw new Error("CLIENT_URL environment variable is required!");
 }
 
 app.set("port", (process.env.PORT));
 app.use(cors({
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: clientUrl.split(",").map(url => url.trim()),
+    methods: ["GET", "POST"],
     credentials: true
 }));
 app.use(express.json({ limit: "40kb" }));
