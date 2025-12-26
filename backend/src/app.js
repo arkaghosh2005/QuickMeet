@@ -15,15 +15,19 @@ const server = createServer(app);
 const io = connectToSocket(server);
 
 // Parse CLIENT_URL to support multiple origins (comma-separated) or wildcard
-const getAllowedOrigins = () => {
-    const clientUrl = process.env.CLIENT_URL;
-    if (!clientUrl || clientUrl === "*") return "*";
-    return clientUrl.split(",").map(url => url.trim());
-};
+const clientUrl = process.env.CLIENT_URL;
+console.log("CLIENT_URL for Express CORS:", clientUrl);
+
+let allowedOrigins;
+if (!clientUrl || clientUrl === "*") {
+    allowedOrigins = "*";
+} else {
+    allowedOrigins = clientUrl.split(",").map(url => url.trim());
+}
 
 app.set("port", (process.env.PORT));
 app.use(cors({
-    origin: getAllowedOrigins(),
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));

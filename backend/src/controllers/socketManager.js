@@ -8,19 +8,24 @@ let connections = {}
 let messages = {}
 let timeOnline = {}
 
-// Parse CLIENT_URL to support multiple origins (comma-separated) or wildcard
-const getAllowedOrigins = () => {
-    const clientUrl = process.env.CLIENT_URL;
-    if (!clientUrl || clientUrl === "*") return "*";
-    return clientUrl.split(",").map(url => url.trim());
-};
-
 export const connectToSocket = (server) => {
+    // Parse CLIENT_URL to support multiple origins (comma-separated) or wildcard
+    const clientUrl = process.env.CLIENT_URL;
+    console.log("CLIENT_URL from env:", clientUrl);
+    
+    let allowedOrigins;
+    if (!clientUrl || clientUrl === "*") {
+        allowedOrigins = "*";
+    } else {
+        allowedOrigins = clientUrl.split(",").map(url => url.trim());
+    }
+    
+    console.log("Allowed origins for CORS:", allowedOrigins);
 
     // Create a new Socket.io server
     const io = new Server(server, {
         cors: {
-            origin: getAllowedOrigins(),
+            origin: allowedOrigins,
             methods: ["GET", "POST"],
             allowedHeaders: ["Content-Type"],
             credentials: true
