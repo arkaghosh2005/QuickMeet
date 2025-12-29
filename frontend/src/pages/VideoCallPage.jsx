@@ -22,13 +22,11 @@ const VideoCallPage = () => {
     const { meetingCode } = useParams();
     const { userData } = useAuth();
     const location = useLocation();
-    var socketRef = useRef();
-    let socketIdRef = useRef();
-    let localVideoref = useRef();
+    let socketRef = useRef();
+    let localVideoRef = useRef();
     let screenVideoRef = useRef();
 
     // Store videos array in a ref for immediate access
-    let videosRef = useRef([]);
     let peerCameraTracksRef = useRef({});
 
     // Store clients data from backend for reference
@@ -57,15 +55,11 @@ const VideoCallPage = () => {
 
     // UI States and Chat
     const [showCopiedToast, setShowCopiedToast] = useState(false);
-    let [showModal, setModal] = useState(false);
     let [messages, setMessages] = useState([]);
-    let [message, setMessage] = useState("");
     let [newMessages, setNewMessages] = useState(0);
 
-    // Remote Participants
+    // Remote Participants and Screen Shares
     let [videos, setVideos] = useState([]);
-
-    // Screen shares tracking
     let [screenShares, setScreenShares] = useState([]);
 
     // Real participants data - Dynamically tracked from socket
@@ -73,160 +67,120 @@ const VideoCallPage = () => {
 
     // Block back navigation
     useEffect(() => {
-        window.history.pushState(null, "", window.location.href);
-        const blockNavigation = () => {
+        const blockNav = (e) => {
+            e.preventDefault();
             window.history.pushState(null, "", window.location.href);
         };
-        window.addEventListener("popstate", blockNavigation);
-        return () => {
-            window.removeEventListener("popstate", blockNavigation);
-        };
-    }, []);
 
-    // Initialize current user as first participant on mount
-    useEffect(() => {
-        setParticipants([{
-            id: socketIdRef.current || "me",
-            socketId: socketIdRef.current,
-            name: initialState.displayName,
-            isHost: initialState.isHost,
-            audio: audio,
-            video: video,
-            isScreenSharing: screenShare,
-            isMe: true,
-        }]);
+        window.history.pushState(null, "", window.location.href);
+        window.addEventListener("popstate", blockNav);
+
+        return () => {
+            window.removeEventListener("popstate", blockNav);
+        };
     }, []);
 
     // Update current user's audio/video/screenShare state in participants when toggled
     useEffect(() => {
-        setParticipants(prev => prev.map(p =>
-            p.isMe ? { ...p, audio: audio, video: video, isScreenSharing: screenShare } : p
-        ));
+        setParticipants(prev =>
+            prev.map(participant => {
+                if (!participant.isMe) return participant;
+
+                return {
+                    ...participant,
+                    audio,
+                    video,
+                    isScreenSharing: screenShare
+                };
+            })
+        );
     }, [audio, video, screenShare]);
 
     // Trigger screen share when screenShare state changes
     useEffect(() => {
         if (screenShare) {
-            getDislayMedia();
+            getDisplayMedia();
         }
     }, [screenShare]);
 
-    // Sync remote participants with videos state - preserve backend data
+    // Sync remote participants' video and screenShare status with live track data
     useEffect(() => {
-        setParticipants(prev => {
-            const currentUser = prev.find(p => p.isMe);
+        setParticipants(prev =>
+            prev.map(participant => {
+                if (participant.isMe) return participant;
 
-            // Get remote participants, preserving backend data from clientsRef
-            const remoteParticipants = videos.map(v => {
-                // First check existing participant data
-                const existingParticipant = prev.find(p => p.socketId === v.socketId && !p.isMe);
-                // Also check backend clients data
-                const backendClient = clientsRef.current.find(c => c.socketId === v.socketId);
+                // Find matching video stream
+                const videoData = videos.find(v => v.socketId === participant.socketId);
+                if (!videoData) return participant;
 
-                // Check if video track exists and is enabled
-                const videoTrack = v.stream?.getVideoTracks()?.[0];
-                const hasVideo = videoTrack && videoTrack.enabled && videoTrack.readyState === 'live';
+                // Check live video track status
+                const videoTrack = videoData.stream?.getVideoTracks()?.[0];
+                const hasVideo = videoTrack?.enabled && videoTrack?.readyState === 'live';
 
-                // Check if this user is screen sharing
-                const isScreenSharing = screenShares.some(share => share.socketId === v.socketId);
+                // Check screen share status
+                const isScreenSharing = screenShares.some(s => s.socketId === participant.socketId);
 
-                return {
-                    id: v.socketId,
-                    socketId: v.socketId,
-                    // Priority: existing > backend > fallback
-                    name: existingParticipant?.name || backendClient?.userName || `User ${v.socketId.slice(0, 4)}`,
-                    isHost: existingParticipant?.isHost ?? backendClient?.userRole === 'host' ?? false,
-                    audio: existingParticipant?.audio ?? backendClient?.audio ?? true,
-                    video: hasVideo,
-                    isScreenSharing: isScreenSharing,
-                    isMe: false,
-                };
-            });
+                // Only update if changed
+                if (participant.video === hasVideo && participant.isScreenSharing === isScreenSharing) {
+                    return participant;
+                }
 
-            return currentUser ? [currentUser, ...remoteParticipants] : remoteParticipants;
-        });
+                return { ...participant, video: hasVideo, isScreenSharing };
+            })
+        );
     }, [videos, screenShares]);
 
     // Calculate layout based on screen shares and participants
     const layoutData = useMemo(() => {
         const TOTAL_SLOTS = 8;
-        const allScreenShares = [];
 
-        // Collect all screen shares
-        if (screenShare) {
-            allScreenShares.push({
+        // Collect all screen shares (local + remote)
+        const allScreenShares = [
+            ...(screenShare ? [{
                 id: 'my-screen',
-                socketId: socketIdRef.current,
+                socketId: socketRef.current?.id,
                 name: initialState.displayName,
                 isMyScreen: true,
-            });
-        }
-
-        // Add remote screen shares
-        screenShares.forEach(share => {
-            allScreenShares.push(share);
-        });
-
-        const screenShareCount = allScreenShares.length;
-        let slotsForScreens = 0;
-
-        // Calculate screen share slots
-        if (screenShareCount === 1) {
-            slotsForScreens = 6;
-        } else if (screenShareCount === 2) {
-            slotsForScreens = 6;
-        } else if (screenShareCount >= 3) {
-            slotsForScreens = screenShareCount;
-        }
-
-        const availableParticipantSlots = TOTAL_SLOTS - slotsForScreens;
-
-        // Separate participants by video status
-        const currentUser = participants.find(p => p.isMe);
-        const remoteParticipants = participants.filter(p => !p.isMe);
-
-        const videoOnParticipants = [
-            ...(currentUser ? [currentUser] : []),
-            ...remoteParticipants.filter(p => p.video)
+            }] : []),
+            ...screenShares
         ];
-        const videoOffParticipants = remoteParticipants.filter(p => !p.video);
 
-        const visibleVideoOnParticipants = videoOnParticipants;
+        const screenCount = allScreenShares.length;
+        const slotsForScreens = screenCount >= 3 ? screenCount : screenCount > 0 ? 6 : 0;
+        const availableSlots = TOTAL_SLOTS - slotsForScreens;
 
-        const videoOnCount = videoOnParticipants.length;
-        const remainingSlotsAfterVideoOn = Math.max(0, availableParticipantSlots - videoOnCount);
+        // Split participants: current user first, then video ON, then video OFF
+        const currentUser = participants.find(p => p.isMe);
+        const remoteWithVideo = participants.filter(p => !p.isMe && p.video);
+        const remoteWithoutVideo = participants.filter(p => !p.isMe && !p.video);
 
-        const needsOverflow = videoOffParticipants.length > remainingSlotsAfterVideoOn;
-        const videoOffSlotsAvailable = needsOverflow ? remainingSlotsAfterVideoOn - 1 : remainingSlotsAfterVideoOn;
+        const videoOnParticipants = [...(currentUser ? [currentUser] : []), ...remoteWithVideo];
+        const slotsAfterVideoOn = Math.max(0, availableSlots - videoOnParticipants.length);
 
-        const visibleVideoOffParticipants = videoOffParticipants.slice(0, Math.max(0, videoOffSlotsAvailable));
-        const overflowCount = Math.max(0, videoOffParticipants.length - videoOffSlotsAvailable);
+        const needsOverflow = remoteWithoutVideo.length > slotsAfterVideoOn;
+        const videoOffSlots = needsOverflow ? slotsAfterVideoOn - 1 : slotsAfterVideoOn;
 
-        const totalParticipantCount = participants.length;
-        let participantGridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr";
+        const visibleVideoOff = remoteWithoutVideo.slice(0, Math.max(0, videoOffSlots));
+        const overflowCount = remoteWithoutVideo.length - visibleVideoOff.length;
 
-        if (screenShareCount === 0) {
-            if (totalParticipantCount === 1) {
-                participantGridClass = "grid grid-cols-1 gap-4 h-full";
-            } else if (totalParticipantCount === 2) {
-                participantGridClass = "grid grid-cols-1 sm:grid-cols-2 gap-4 h-full";
-            } else if (totalParticipantCount >= 3 && totalParticipantCount <= 4) {
-                participantGridClass = "grid grid-cols-1 sm:grid-cols-2 gap-4 auto-rows-fr";
-            } else {
-                participantGridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr";
-            }
-        }
+        // Grid class based on participant count (only when no screen shares)
+        const count = participants.length;
+        const gridClass = screenCount > 0
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr"
+            : count <= 2
+                ? `grid grid-cols-1 ${count === 2 ? "sm:grid-cols-2" : ""} gap-4 h-full`
+                : `grid grid-cols-1 sm:grid-cols-2 ${count > 4 ? "lg:grid-cols-4" : ""} gap-4 auto-rows-fr`;
 
         return {
             screenShares: allScreenShares,
-            screenShareCount,
+            screenShareCount: screenCount,
             slotsForScreens,
-            visibleVideoOnParticipants,
-            visibleVideoOffParticipants,
+            visibleVideoOnParticipants: videoOnParticipants,
+            visibleVideoOffParticipants: visibleVideoOff,
             overflowCount,
             showOverflow: needsOverflow && overflowCount > 0,
-            participantGridClass,
-            totalParticipantCount,
+            participantGridClass: gridClass,
+            totalParticipantCount: count,
         };
     }, [screenShare, screenShares, participants, initialState.displayName]);
 
@@ -257,10 +211,10 @@ const VideoCallPage = () => {
         return Object.assign(stream.getVideoTracks()[0], { enabled: false })
     }
 
-    let getDislayMedia = () => {
+    let getDisplayMedia = () => {
         if (screenShare && navigator.mediaDevices?.getDisplayMedia) {
             navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
-                .then(getDislayMediaSuccess)
+                .then(getDisplayMediaSuccess)
                 .catch(err => {
                     setScreenShare(false);
                 });
@@ -269,56 +223,41 @@ const VideoCallPage = () => {
         }
     }
 
-    let getDislayMediaSuccess = (displayStream) => {
-        try {
-            if (window.screenStream?.getTracks) {
-                window.screenStream.getTracks().forEach(track => track.stop());
-            }
-        } catch (e) { }
+    let getDisplayMediaSuccess = (stream) => {
+        // Stop existing & store new
+        window.screenStream?.getTracks()?.forEach(t => t.stop());
+        window.screenStream = stream;
+        if (screenVideoRef.current) screenVideoRef.current.srcObject = stream;
 
-        window.screenStream = displayStream;
+        const screenTrack = stream.getVideoTracks()[0];
+        if (!screenTrack) return;
 
-        if (screenVideoRef.current) {
-            screenVideoRef.current.srcObject = displayStream;
-        }
-
-        // Add screen share track to existing connections AND renegotiate
-        for (let peerId in connections) {
-            if (peerId === socketIdRef.current) continue;
+        // Add to all peers & renegotiate
+        Object.entries(connections).forEach(([peerId, pc]) => {
+            if (peerId === socketRef.current?.id) return;
             try {
-                const peerConnection = connections[peerId];
-                const screenTrack = displayStream.getVideoTracks()[0];
-
-                if (screenTrack) {
-                    peerConnection.addTrack(screenTrack, displayStream);
-
-                    peerConnection.createOffer()
-                        .then((description) => peerConnection.setLocalDescription(description))
-                        .then(() => {
-                            socketRef.current.emit('signal', peerId, JSON.stringify({ 'sdp': peerConnection.localDescription }));
-                        })
-                        .catch(e => { });
-                }
-            } catch (e) { }
-        }
-
-        // Notify other participants
-        if (socketRef.current) {
-            socketRef.current.emit('screen-share-started', initialState.displayName);
-        }
-
-        displayStream.getTracks().forEach(track => {
-            track.onended = () => {
-                setScreenShare(false);
-                window.screenStream = null;
-                if (socketRef.current) {
-                    socketRef.current.emit('screen-share-stopped');
-                }
-            };
+                pc.addTrack(screenTrack, stream);
+                pc.createOffer()
+                    .then(desc => pc.setLocalDescription(desc))
+                    .then(() => socketRef.current?.emit('signal', peerId, JSON.stringify({ sdp: pc.localDescription })))
+                    .catch(() => { });
+            } catch { }
         });
+
+        // Notify server
+        socketRef.current?.emit('screen-share-toggle', true, initialState.displayName);
+
+        // Handle stop (via browser UI or track end)
+        const onEnded = () => {
+            setScreenShare(false);
+            window.screenStream = null;
+            socketRef.current?.emit('screen-share-toggle', false);
+        };
+        stream.getTracks().forEach(t => t.onended = onEnded);
     };
 
     const getPermissions = async () => {
+        // Check if mediaDevices API is available
         if (!navigator.mediaDevices?.getUserMedia) {
             setVideoAvailable(false);
             setAudioAvailable(false);
@@ -328,32 +267,31 @@ const VideoCallPage = () => {
             return;
         }
 
-        let videoOk = false;
-        let audioOk = false;
+        // Helper to check single device permission
+        const checkDevice = async (constraint) => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraint);
+                stream.getTracks().forEach(track => track.stop());
+                return true;
+            } catch {
+                return false;
+            }
+        };
 
-        try {
-            const cam = await navigator.mediaDevices.getUserMedia({ video: true });
-            videoOk = true;
-            setVideoAvailable(true);
-            cam.getTracks().forEach(track => track.stop());
-        } catch (error) {
-            setVideoAvailable(false);
-            setVideo(false);
-        }
+        // Check video and audio permissions in parallel
+        const [videoOk, audioOk] = await Promise.all([
+            checkDevice({ video: true }),
+            checkDevice({ audio: true })
+        ]);
 
-        try {
-            const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioOk = true;
-            setAudioAvailable(true);
-            mic.getTracks().forEach(track => track.stop());
-        } catch (error) {
-            setAudioAvailable(false);
-            setAudio(false);
-        }
-
+        // Update availability states
+        setVideoAvailable(videoOk);
+        setAudioAvailable(audioOk);
+        if (!videoOk) setVideo(false);
+        if (!audioOk) setAudio(false);
         setScreenAvailable(!!navigator.mediaDevices?.getDisplayMedia);
 
-        // Get initial stream if any device is available
+        // Get initial preview stream if any device is available
         if (videoOk || audioOk) {
             try {
                 const preview = await navigator.mediaDevices.getUserMedia({
@@ -361,10 +299,10 @@ const VideoCallPage = () => {
                     audio: audioOk && audio,
                 });
                 window.localStream = preview;
-                if (localVideoref.current) {
-                    localVideoref.current.srcObject = preview;
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = preview;
                 }
-            } catch (e) { }
+            } catch { /* Ignore preview errors */ }
         }
 
         connectToSocketServer();
@@ -375,446 +313,277 @@ const VideoCallPage = () => {
         const wantAudio = !!(audio && audioAvailable);
 
         if (!wantVideo && !wantAudio) {
-            if (window.localStream) {
-                window.localStream.getVideoTracks().forEach(track => track.enabled = false);
-                window.localStream.getAudioTracks().forEach(track => track.enabled = false);
-            }
+            window.localStream?.getVideoTracks().forEach(t => t.enabled = false);
+            window.localStream?.getAudioTracks().forEach(t => t.enabled = false);
             return;
         }
 
-        if (!navigator.mediaDevices?.getUserMedia) {
-            return;
-        }
+        if (!navigator.mediaDevices?.getUserMedia) return;
 
         navigator.mediaDevices.getUserMedia({ video: wantVideo, audio: wantAudio })
             .then(getUserMediaSuccess)
-            .catch(e => {
+            .catch(() => {
                 if (wantVideo) { setVideoAvailable(false); setVideo(false); }
                 if (wantAudio) { setAudioAvailable(false); setAudio(false); }
             });
     };
 
-    let getUserMediaSuccess = (userStream) => {
-        try {
-            if (window.localStream?.getTracks) {
-                window.localStream.getTracks().forEach(track => track.stop());
-            }
-        } catch (e) { }
+    let getUserMediaSuccess = (stream) => {
+        window.localStream?.getTracks().forEach(t => t.stop());
+        window.localStream = stream;
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
-        window.localStream = userStream;
-        if (localVideoref.current) {
-            localVideoref.current.srcObject = userStream;
-        }
+        const myId = socketRef.current?.id;
+        const screenTrack = window.screenStream?.getVideoTracks()[0];
 
         // Replace tracks in existing peer connections
-        for (let peerId in connections) {
-            if (peerId === socketIdRef.current) continue;
-            try {
-                const peerConnection = connections[peerId];
-                const senders = peerConnection.getSenders();
+        Object.entries(connections).forEach(([peerId, pc]) => {
+            if (peerId === myId) return;
 
-                const videoSender = senders.find(sender =>
-                    sender.track?.kind === 'video' &&
-                    sender.track !== window.screenStream?.getVideoTracks()[0]
-                );
-                const videoTrack = userStream.getVideoTracks()[0];
-                if (videoSender && videoTrack) {
-                    videoSender.replaceTrack(videoTrack).catch(e => { });
-                }
+            const senders = pc.getSenders();
+            const videoTrack = stream.getVideoTracks()[0];
+            const audioTrack = stream.getAudioTracks()[0];
 
-                const audioSender = senders.find(sender => sender.track?.kind === 'audio');
-                const audioTrack = userStream.getAudioTracks()[0];
-                if (audioSender && audioTrack) {
-                    audioSender.replaceTrack(audioTrack).catch(e => { });
-                }
-            } catch (e) { }
-        }
+            // Replace video track (skip screen share track)
+            const videoSender = senders.find(s => s.track?.kind === 'video' && s.track !== screenTrack);
+            if (videoSender && videoTrack) videoSender.replaceTrack(videoTrack).catch(() => { });
 
-        userStream.getTracks().forEach(track => {
-            track.onended = () => {
-                setVideo(false);
-                setAudio(false);
-            };
+            // Replace audio track
+            const audioSender = senders.find(s => s.track?.kind === 'audio');
+            if (audioSender && audioTrack) audioSender.replaceTrack(audioTrack).catch(() => { });
+        });
+
+        stream.getTracks().forEach(t => {
+            t.onended = () => { setVideo(false); setAudio(false); };
         });
     };
 
     // Re-get user media when video/audio toggles
     useEffect(() => {
-        if (video !== undefined && audio !== undefined) {
-            getUserMedia();
-        }
+        if (video !== undefined && audio !== undefined) getUserMedia();
     }, [video, audio]);
 
     let gotMessageFromServer = (fromId, message) => {
-        var signal = JSON.parse(message)
-        if (fromId !== socketIdRef.current) {
-            if (!connections[fromId]) {
-                return;
-            }
+        if (fromId === socketRef.current?.id) return;
 
-            const peerConnection = connections[fromId];
+        const pc = connections[fromId];
+        if (!pc) return;
 
-            if (signal.sdp) {
-                const currentState = peerConnection.signalingState;
+        const signal = JSON.parse(message);
 
-                if (signal.sdp.type === 'offer') {
-                    if (currentState === 'stable' || currentState === 'have-remote-offer') {
-                        peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp))
-                            .then(() => peerConnection.createAnswer())
-                            .then((description) => peerConnection.setLocalDescription(description))
-                            .then(() => {
-                                socketRef.current.emit('signal', fromId, JSON.stringify({ 'sdp': peerConnection.localDescription }))
-                            })
-                            .catch(e => { });
-                    }
-                }
-                else if (signal.sdp.type === 'answer') {
-                    if (currentState === 'have-local-offer') {
-                        peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp))
-                            .catch(e => { });
-                    }
-                }
-            }
+        // Handle SDP (offer/answer)
+        if (signal.sdp) {
+            const state = pc.signalingState;
+            const isOffer = signal.sdp.type === 'offer';
+            const isAnswer = signal.sdp.type === 'answer';
 
-            if (signal.ice) {
-                peerConnection.addIceCandidate(new RTCIceCandidate(signal.ice))
-                    .catch(e => { });
+            const canHandleOffer = isOffer && (state === 'stable' || state === 'have-remote-offer');
+            const canHandleAnswer = isAnswer && state === 'have-local-offer';
+
+            if (canHandleOffer) {
+                pc.setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                    .then(() => pc.createAnswer())
+                    .then(desc => pc.setLocalDescription(desc))
+                    .then(() => socketRef.current.emit('signal', fromId, JSON.stringify({ sdp: pc.localDescription })))
+                    .catch(() => { });
+            } else if (canHandleAnswer) {
+                pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).catch(() => { });
             }
         }
-    }
+
+        // Handle ICE candidate
+        if (signal.ice) {
+            pc.addIceCandidate(new RTCIceCandidate(signal.ice)).catch(() => { });
+        }
+    };
 
     let connectToSocketServer = () => {
-        if (socketRef.current?.connected) {
-            return;
-        }
+        if (socketRef.current?.connected) return;
 
-        if (socketRef.current) {
-            socketRef.current.disconnect();
-            socketRef.current = null;
-        }
-
-        socketRef.current = io.connect(server_url, { secure: false })
-        socketRef.current.on('signal', gotMessageFromServer)
+        socketRef.current?.disconnect();
+        socketRef.current = io.connect(server_url, { secure: false });
+        socketRef.current.on('signal', gotMessageFromServer);
 
         socketRef.current.on('connect', () => {
-            socketIdRef.current = socketRef.current.id
+            const socket = socketRef.current;
+            const myId = socket?.id;
 
-            socketRef.current.emit('join-call', {
+            socket.emit('join-call', {
                 roomUrl: window.location.href,
                 userName: initialState.displayName,
                 userRole: initialState.isHost ? 'host' : 'participant',
-                video: video,
-                audio: audio,
-                timestamp: new Date().toISOString()
+                video, audio,
             });
 
-            window.mySocket = socketRef.current;
+            window.mySocket = socket;
 
             // Update current user with socket ID
             setParticipants(prev => prev.map(p =>
-                p.isMe ? { ...p, id: socketIdRef.current, socketId: socketIdRef.current } : p
+                p.isMe ? { ...p, id: myId, socketId: myId } : p
             ));
 
-            socketRef.current.on('chat-message', addMessage)
+            socket.on('chat-message', addMessage);
 
-            socketRef.current.on('user-started-screen-share', (socketId, sharerName) => {
-                setScreenShares(prev => {
-                    if (prev.some(s => s.socketId === socketId)) return prev;
-                    return [...prev, {
-                        id: `screen-${socketId}`,
-                        socketId: socketId,
-                        name: sharerName,
-                        isMyScreen: false,
-                        stream: null
-                    }];
-                });
+            socket.on('user-started-screen-share', (socketId, sharerName) => {
+                setScreenShares(prev => prev.some(s => s.socketId === socketId) ? prev : [
+                    ...prev,
+                    { id: `screen-${socketId}`, socketId, name: sharerName, isMyScreen: false, stream: null }
+                ]);
             });
 
-            socketRef.current.on('user-stopped-screen-share', (socketId) => {
+            socket.on('user-stopped-screen-share', (socketId) => {
                 setScreenShares(prev => prev.filter(s => s.socketId !== socketId));
             });
 
-            socketRef.current.on('user-media-state-changed', (socketId, { video, audio }) => {
+            socket.on('user-media-state-changed', (socketId, { video, audio }) => {
                 setParticipants(prev => prev.map(p =>
                     p.socketId === socketId ? { ...p, video, audio } : p
                 ));
-
-                // Also update clientsRef
-                const clientIndex = clientsRef.current.findIndex(c => c.socketId === socketId);
-                if (clientIndex !== -1) {
-                    clientsRef.current[clientIndex].video = video;
-                    clientsRef.current[clientIndex].audio = audio;
-                }
+                const client = clientsRef.current.find(c => c.socketId === socketId);
+                if (client) Object.assign(client, { video, audio });
             });
 
-            socketRef.current.on('user-left', (id) => {
+            socket.on('user-left', (id) => {
                 setParticipants(prev => prev.filter(p => p.socketId !== id));
                 setScreenShares(prev => prev.filter(s => s.socketId !== id));
-                setVideos((videos) => {
-                    const updatedVideos = videos.filter((video) => video.socketId !== id);
-                    videosRef.current = updatedVideos;
-                    return updatedVideos;
-                });
-
-                // Clean up peerCameraTracksRef
+                setVideos(prev => prev.filter(v => v.socketId !== id));
                 delete peerCameraTracksRef.current[id];
-
-                // Update clientsRef
                 clientsRef.current = clientsRef.current.filter(c => c.socketId !== id);
+                connections[id]?.close();
+                delete connections[id];
+            });
 
-                if (connections[id]) {
-                    connections[id].close();
-                    delete connections[id];
-                }
-            })
-
-            socketRef.current.on('user-joined', (id, clients) => {
-                // Store clients data for reference
+            socket.on('user-joined', (id, clients) => {
                 clientsRef.current = clients;
 
-                const socketIds = clients.map(client => client.socketId);
-
-                // Update participants with user info from backend
+                // Update participants list
                 setParticipants(prev => {
                     const currentUser = prev.find(p => p.isMe);
-
-                    const allParticipants = clients.map(client => {
-                        if (client.socketId === socketIdRef.current) {
-                            // Keep current user's local state
+                    return clients.map(client => {
+                        if (client.socketId === myId) {
                             return currentUser || {
-                                id: client.socketId,
-                                socketId: client.socketId,
-                                name: client.userName,
+                                id: myId, socketId: myId, name: client.userName,
                                 isHost: client.userRole === 'host',
-                                audio: audio,
-                                video: video,
-                                isScreenSharing: screenShare,
-                                isMe: true
-                            };
-                        } else {
-                            const existing = prev.find(p => p.socketId === client.socketId);
-                            return {
-                                id: client.socketId,
-                                socketId: client.socketId,
-                                name: client.userName,
-                                isHost: client.userRole === 'host',
-                                audio: client.audio,
-                                video: client.video,
-                                isScreenSharing: existing?.isScreenSharing || false,
-                                isMe: false
+                                audio, video, isScreenSharing: screenShare, isMe: true
                             };
                         }
+                        const existing = prev.find(p => p.socketId === client.socketId);
+                        return {
+                            id: client.socketId, socketId: client.socketId, name: client.userName,
+                            isHost: client.userRole === 'host', audio: client.audio, video: client.video,
+                            isScreenSharing: existing?.isScreenSharing || false, isMe: false
+                        };
                     });
-
-                    return allParticipants;
                 });
 
-                socketIds.forEach((socketListId) => {
-                    if (socketListId === socketIdRef.current) {
-                        return;
-                    }
+                // Setup peer connections for each remote client
+                clients.forEach(({ socketId: peerId }) => {
+                    if (peerId === myId || connections[peerId]) return;
 
-                    if (connections[socketListId]) {
-                        return;
-                    }
+                    const pc = connections[peerId] = new RTCPeerConnection(peerConfigConnections);
 
-                    connections[socketListId] = new RTCPeerConnection(peerConfigConnections)
+                    pc.onicecandidate = (e) => {
+                        if (e.candidate) socket.emit('signal', peerId, JSON.stringify({ ice: e.candidate }));
+                    };
 
-                    connections[socketListId].onicecandidate = function (event) {
-                        if (event.candidate != null) {
-                            socketRef.current.emit('signal', socketListId, JSON.stringify({ 'ice': event.candidate }))
-                        }
-                    }
+                    pc.ontrack = (event) => {
+                        if (event.track.kind !== 'video') return;
 
-                    connections[socketListId].ontrack = (event) => {
-                        if (event.track.kind !== 'video') {
-                            return;
-                        }
-
-                        const trackLabel = event.track.label.toLowerCase();
-                        const labelIndicatesScreen =
-                            trackLabel.includes('screen') ||
-                            trackLabel.includes('display') ||
-                            trackLabel.includes('window') ||
-                            trackLabel.includes('monitor') ||
-                            event.track.label.startsWith('screen:');
-
-                        const isSecondVideoTrack = peerCameraTracksRef.current[socketListId] !== undefined;
-                        const isScreenTrack = labelIndicatesScreen || isSecondVideoTrack;
+                        const label = event.track.label.toLowerCase();
+                        const isScreenByLabel = ['screen', 'display', 'window', 'monitor']
+                            .some(k => label.includes(k)) || event.track.label.startsWith('screen:');
+                        const isScreenTrack = isScreenByLabel || peerCameraTracksRef.current[peerId] !== undefined;
 
                         if (isScreenTrack) {
                             const screenStream = new MediaStream([event.track]);
-                            const userInfo = clients.find(c => c.socketId === socketListId);
-                            const userName = userInfo?.userName || `User ${socketListId.substring(0, 4)}`;
+                            const userName = clients.find(c => c.socketId === peerId)?.userName
+                                || `User ${peerId.substring(0, 4)}`;
 
                             setScreenShares(prev => {
-                                const existingShare = prev.find(s => s.socketId === socketListId);
-                                if (existingShare) {
-                                    return prev.map(share =>
-                                        share.socketId === socketListId
-                                            ? { ...share, stream: screenStream, name: userName }
-                                            : share
-                                    );
-                                } else {
-                                    return [...prev, {
-                                        id: `screen-${socketListId}`,
-                                        socketId: socketListId,
-                                        name: userName,
-                                        stream: screenStream,
-                                    }];
-                                }
+                                const exists = prev.find(s => s.socketId === peerId);
+                                return exists
+                                    ? prev.map(s => s.socketId === peerId ? { ...s, stream: screenStream, name: userName } : s)
+                                    : [...prev, { id: `screen-${peerId}`, socketId: peerId, name: userName, stream: screenStream }];
                             });
 
-                            event.track.onended = () => {
-                                setScreenShares(prev => prev.filter(s => s.socketId !== socketListId));
-                            };
-
+                            event.track.onended = () => setScreenShares(prev => prev.filter(s => s.socketId !== peerId));
                         } else {
-                            peerCameraTracksRef.current[socketListId] = event.track;
+                            peerCameraTracksRef.current[peerId] = event.track;
 
-                            let videoExists = videosRef.current.find(video => video.socketId === socketListId);
-
-                            if (videoExists) {
-                                setVideos(videos => {
-                                    const updatedVideos = videos.map(video => {
-                                        if (video.socketId === socketListId) {
-                                            const existingStream = video.stream;
-                                            const newStream = new MediaStream();
-                                            newStream.addTrack(event.track);
-
-                                            if (existingStream) {
-                                                existingStream.getAudioTracks().forEach(track => {
-                                                    newStream.addTrack(track);
-                                                });
-                                            }
-
-                                            return { ...video, stream: newStream };
-                                        }
-                                        return video;
-                                    });
-                                    videosRef.current = updatedVideos;
-                                    return updatedVideos;
-                                });
-                            } else {
-                                let newVideo = {
-                                    socketId: socketListId,
-                                    stream: new MediaStream([event.track]),
-                                    autoplay: true,
-                                    playsinline: true
-                                };
-
-                                setVideos(videos => {
-                                    const updatedVideos = [...videos, newVideo];
-                                    videosRef.current = updatedVideos;
-                                    return updatedVideos;
-                                });
-                            }
+                            setVideos(prev => {
+                                const existing = prev.find(v => v.socketId === peerId);
+                                if (existing) {
+                                    const newStream = new MediaStream([event.track]);
+                                    existing.stream?.getAudioTracks().forEach(t => newStream.addTrack(t));
+                                    return prev.map(v => v.socketId === peerId ? { ...v, stream: newStream } : v);
+                                }
+                                return [...prev, {
+                                    socketId: peerId, stream: new MediaStream([event.track]),
+                                    autoplay: true, playsinline: true
+                                }];
+                            });
                         }
                     };
 
-                    // Add local stream tracks
-                    if (window.localStream) {
-                        window.localStream.getTracks().forEach(track => {
-                            connections[socketListId].addTrack(track, window.localStream);
-                        });
-                    } else {
-                        let blackSilence = (...args) => new MediaStream([black(...args), silence()])
-                        window.localStream = blackSilence()
-                        window.localStream.getTracks().forEach(track => {
-                            connections[socketListId].addTrack(track, window.localStream);
-                        });
+                    // Add local tracks (create black+silence if no stream)
+                    if (!window.localStream) {
+                        window.localStream = new MediaStream([black(), silence()]);
                     }
+                    window.localStream.getTracks().forEach(t => pc.addTrack(t, window.localStream));
 
                     // Add screen track if sharing
-                    if (window.screenStream) {
-                        const screenTrack = window.screenStream.getVideoTracks()[0];
-                        if (screenTrack) {
-                            connections[socketListId].addTrack(screenTrack, window.screenStream);
-                        }
-                    }
-                })
+                    const screenTrack = window.screenStream?.getVideoTracks()[0];
+                    if (screenTrack) pc.addTrack(screenTrack, window.screenStream);
+                });
 
-                if (id === socketIdRef.current) {
-                    for (let id2 in connections) {
-                        if (id2 === socketIdRef.current) continue
-
-                        connections[id2].createOffer().then((description) => {
-                            connections[id2].setLocalDescription(description)
-                                .then(() => {
-                                    socketRef.current.emit('signal', id2, JSON.stringify({ 'sdp': connections[id2].localDescription }))
-                                })
-                                .catch(e => { })
-                        }).catch(e => { })
-                    }
+                // If I just joined, send offers to all peers
+                if (id === myId) {
+                    Object.entries(connections).forEach(([peerId, pc]) => {
+                        if (peerId === myId) return;
+                        pc.createOffer()
+                            .then(desc => pc.setLocalDescription(desc))
+                            .then(() => socket.emit('signal', peerId, JSON.stringify({ sdp: pc.localDescription })))
+                            .catch(() => { });
+                    });
                 }
-            })
-        })
-    }
+            });
+        });
+    };
 
     const toggleVideo = () => {
         const newVideo = !video;
-        if (window.localStream) {
-            window.localStream.getVideoTracks().forEach(track => {
-                track.enabled = newVideo;
-            });
-        }
+        window.localStream?.getVideoTracks().forEach(t => t.enabled = newVideo);
         setVideo(newVideo);
-
-        if (socketRef.current) {
-            socketRef.current.emit('update-media-state', { video: newVideo, audio: audio });
-        }
+        socketRef.current?.emit('update-media-state', { video: newVideo, audio });
     };
 
     const toggleAudio = () => {
         const newAudio = !audio;
-        if (window.localStream) {
-            window.localStream.getAudioTracks().forEach(track => {
-                track.enabled = newAudio;
-            });
-        }
+        window.localStream?.getAudioTracks().forEach(t => t.enabled = newAudio);
         setAudio(newAudio);
-
-        if (socketRef.current) {
-            socketRef.current.emit('update-media-state', { video: video, audio: newAudio });
-        }
+        socketRef.current?.emit('update-media-state', { video, audio: newAudio });
     };
 
     const toggleScreenShare = () => {
-        if (screenShare) {
-            try {
-                for (let peerId in connections) {
-                    if (peerId === socketIdRef.current) continue;
-                    try {
-                        const peerConnection = connections[peerId];
-                        const senders = peerConnection.getSenders();
-
-                        const screenSender = senders.find(sender =>
-                            sender.track?.kind === 'video' &&
-                            sender.track === window.screenStream?.getVideoTracks()[0]
-                        );
-
-                        if (screenSender) {
-                            peerConnection.removeTrack(screenSender);
-                        }
-                    } catch (e) { }
-                }
-
-                window.screenStream?.getTracks()?.forEach(t => t.stop());
-
-                if (screenVideoRef.current?.srcObject) {
-                    screenVideoRef.current.srcObject = null;
-                }
-
-                window.screenStream = null;
-                setScreenShare(false);
-
-                if (socketRef.current) {
-                    socketRef.current.emit('screen-share-stopped');
-                }
-            } catch (e) { }
-        } else {
+        if (!screenShare) {
             setScreenShare(true);
+            return;
         }
+
+        // Stop sharing - remove screen track from all peers
+        const screenTrack = window.screenStream?.getVideoTracks()[0];
+        Object.entries(connections).forEach(([peerId, pc]) => {
+            if (peerId === socketRef.current?.id) return;
+            const sender = pc.getSenders().find(s => s.track === screenTrack);
+            if (sender) pc.removeTrack(sender);
+        });
+
+        // Cleanup
+        window.screenStream?.getTracks().forEach(t => t.stop());
+        if (screenVideoRef.current) screenVideoRef.current.srcObject = null;
+        window.screenStream = null;
+        setScreenShare(false);
+        socketRef.current?.emit('screen-share-toggle', false);
     };
 
     const toggleSpeaker = () => {
@@ -822,9 +591,8 @@ const VideoCallPage = () => {
     };
 
     const toggleChat = () => {
-        setModal(!showModal);
         setIsChatOpen(!isChatOpen);
-        if (showModal) {
+        if (isChatOpen) {
             setNewMessages(0);
         }
     };
@@ -833,78 +601,57 @@ const VideoCallPage = () => {
         setIsParticipantsOpen(!isParticipantsOpen);
     };
 
-    let handleEndCall = () => {
-        try {
-            if (window.localStream?.getTracks) {
-                window.localStream.getTracks().forEach(track => track.stop());
-            }
-            if (window.screenStream?.getTracks) {
-                window.screenStream.getTracks().forEach(track => track.stop());
-            }
-        } catch (e) { }
+    const handleEndCall = () => {
+        // Stop all media tracks
+        window.localStream?.getTracks().forEach(t => t.stop());
+        window.screenStream?.getTracks().forEach(t => t.stop());
 
-        for (let id in connections) {
-            try {
-                connections[id].close();
-            } catch (e) { }
-        }
+        // Close all peer connections
+        Object.values(connections).forEach(pc => pc.close());
         connections = {};
 
-        if (socketRef.current) {
-            socketRef.current.disconnect();
-        }
+        // Disconnect socket
+        socketRef.current?.disconnect();
 
+        // Reset all states
         setVideo(false);
         setAudio(false);
         setScreenShare(false);
-        setModal(false);
         setIsChatOpen(false);
         setIsParticipantsOpen(false);
         setNewMessages(0);
         setMessages([]);
 
-        window.location.href = "/"
-    }
+        window.location.href = "/";
+    };
 
     const addMessage = (data, sender, socketIdSender) => {
-        if (socketIdSender === socketIdRef.current) {
-            return;
-        }
-        
-        setMessages((prevMessages) => [
-            ...prevMessages,
-            { 
-                id: Date.now().toString() + socketIdSender,
-                senderName: sender, 
-                message: data,
-                timestamp: new Date()
-            }
-        ]);
-        setNewMessages((prevNewMessages) => prevNewMessages + 1);
+        if (socketIdSender === socketRef.current?.id) return;
+        setMessages(prev => [...prev, {
+            id: Date.now() + socketIdSender,
+            senderName: sender,
+            message: data,
+            timestamp: new Date()
+        }]);
+        setNewMessages(newMessages => newMessages + 1);
     };
 
     const handleSendMessage = (message) => {
-        if (socketRef.current && message.trim()) {
-            socketRef.current.emit('chat-message', message, initialState.displayName);
-            setMessages((prevMessages) => [
-                ...prevMessages,
-                {
-                    id: Date.now().toString(),
-                    senderName: initialState.displayName,
-                    message: message,
-                    timestamp: new Date()
-                }
-            ]);
-        }
+        if (!socketRef.current || !message.trim()) return;
+        socketRef.current.emit('chat-message', message, initialState.displayName);
+        setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            senderName: initialState.displayName,
+            message,
+            timestamp: new Date()
+        }]);
     };
 
     const copyMeetingCode = () => {
         if (meetingCode) {
             navigator.clipboard.writeText(meetingCode);
             setShowCopiedToast(true);
-            setTimeout(() => {
-                setShowCopiedToast(false);
-            }, 2000);
+            setTimeout(() => setShowCopiedToast(false), 2000);
         }
     };
 
@@ -917,7 +664,6 @@ const VideoCallPage = () => {
 
     const getGridClasses = () => {
         const { screenShareCount, participantGridClass } = layoutData;
-
         if (screenShareCount >= 1) {
             return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr";
         }
@@ -926,9 +672,7 @@ const VideoCallPage = () => {
 
     const getParticipantSpanClass = () => {
         const { totalParticipantCount, screenShareCount } = layoutData;
-
         if (screenShareCount > 0) return "";
-
         if (totalParticipantCount === 1) {
             return "col-span-1 row-span-2";
         }
@@ -938,41 +682,28 @@ const VideoCallPage = () => {
     const getParticipantVideoElement = (participant) => {
         if (participant.isMe) {
             return (
-                <video
-                    ref={localVideoref}
-                    autoPlay
-                    muted
-                    playsInline
-                    style={{
-                        transform: "scaleX(-1)",
-                        WebkitTransform: "scaleX(-1)",
-                    }}
-                    className="w-full h-full object-contain bg-black"
-                />
+                <video ref={localVideoRef} autoPlay muted playsInline
+                    style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
+                    className="w-full h-full object-contain bg-black" />
             );
-        } else {
-            const videoData = videos.find(v => v.socketId === participant.socketId);
-            if (videoData?.stream) {
-                return (
-                    <video
-                        key={`video-${participant.socketId}`}
-                        autoPlay
-                        playsInline
-                        ref={(videoElement) => {
-                            if (videoElement && videoElement.srcObject !== videoData.stream) {
-                                videoElement.srcObject = videoData.stream;
-                            }
-                        }}
-                        style={{
-                            transform: "scaleX(-1)",
-                            WebkitTransform: "scaleX(-1)",
-                        }}
-                        className="w-full h-full object-contain bg-black"
-                    />
-                );
-            }
         }
-        return null;
+
+        const videoData = videos.find(v => v.socketId === participant.socketId);
+        if (!videoData?.stream) return null;
+        return (
+            <video
+                key={`video-${participant.socketId}`}
+                autoPlay
+                playsInline
+                ref={(videoElement) => {
+                    if (videoElement && videoElement.srcObject !== videoData.stream) {
+                        videoElement.srcObject = videoData.stream;
+                    }
+                }}
+                style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
+                className="w-full h-full object-contain bg-black"
+            />
+        );
     };
 
     return (
@@ -1205,7 +936,7 @@ const VideoCallPage = () => {
 
                         <Button
                             onClick={toggleChat}
-                            variant="ghost"
+                            variant={isChatOpen ? "danger" : "ghost"}
                             className="rounded-full p-3 hover:bg-gray-700 relative">
                             <MessageSquare className="w-5 h-5 text-white" />
                             {newMessages > 0 && !isChatOpen && (
