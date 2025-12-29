@@ -15,13 +15,16 @@ const MeetingEntryPage = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        window.history.pushState(null, "", window.location.href);
-        const blockNavigation = () => {
+        const blockNav = (e) => {
+            e.preventDefault();
             window.history.pushState(null, "", window.location.href);
         };
-        window.addEventListener("popstate", blockNavigation);
+
+        window.history.pushState(null, "", window.location.href);
+        window.addEventListener("popstate", blockNav);
+
         return () => {
-            window.removeEventListener("popstate", blockNavigation);
+            window.removeEventListener("popstate", blockNav);
         };
     }, []);
 
@@ -79,11 +82,10 @@ const MeetingEntryPage = () => {
     ];
 
     return (
-        <div className={`min-h-screen ${
-            isDarkMode 
-                ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" 
-                : "bg-gradient-to-br from-blue-50 via-white to-green-50"
-        } animate-fadeInUp`}>
+        <div className={`min-h-screen ${isDarkMode
+            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+            : "bg-gradient-to-br from-blue-50 via-white to-green-50"
+            } animate-fadeInUp`}>
             {/* Header */}
             <header className={`${isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white"} shadow-sm border-b`}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -128,9 +130,8 @@ const MeetingEntryPage = () => {
                     {/* Join Meeting */}
                     <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"} rounded-2xl shadow-xl p-8`}>
                         <div className="text-center mb-6">
-                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                                isDarkMode ? "bg-gray-700" : "bg-blue-100"
-                            }`}>
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? "bg-gray-700" : "bg-blue-100"
+                                }`}>
                                 <Users className="w-8 h-8 text-blue-600" />
                             </div>
                             <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
@@ -147,11 +148,10 @@ const MeetingEntryPage = () => {
                                 placeholder="Enter meeting code (e.g., ABC-1234-XYZ)"
                                 value={meetingCode}
                                 onChange={handleMeetingCodeChange}
-                                className={`w-full px-4 py-2 border rounded-lg text-center text-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                    isDarkMode 
-                                        ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" 
-                                        : "bg-white border-gray-300 text-gray-900"
-                                }`}
+                                className={`w-full px-4 py-2 border rounded-lg text-center text-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode
+                                    ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                                    : "bg-white border-gray-300 text-gray-900"
+                                    }`}
                             />
                             {error && <p className="text-red-600 text-sm text-center">{error}</p>}
                             <Button onClick={handleJoinMeeting} className="w-full" size="lg">
@@ -164,9 +164,8 @@ const MeetingEntryPage = () => {
                     {/* Start New Meeting */}
                     <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"} rounded-2xl shadow-xl p-8`}>
                         <div className="text-center mb-6">
-                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                                isDarkMode ? "bg-gray-700" : "bg-green-100"
-                            }`}>
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? "bg-gray-700" : "bg-green-100"
+                                }`}>
                                 <Video className="w-8 h-8 text-green-600" />
                             </div>
                             <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
@@ -198,9 +197,8 @@ const MeetingEntryPage = () => {
                         {quickActions.map((action, index) => (
                             <div
                                 key={index}
-                                className={`${
-                                    isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"
-                                } rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow cursor-pointer`}
+                                className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"
+                                    } rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow cursor-pointer`}
                             >
                                 <div className="mb-3">{action.icon}</div>
                                 <h4 className={`font-semibold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>

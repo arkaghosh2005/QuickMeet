@@ -27,14 +27,16 @@ const PreCallPage = () => {
     }, []);
 
     useEffect(() => {
-        // Push a new history state
-        window.history.pushState(null, "", window.location.href);
-        const blockNavigation = () => {
+        const blockNav = (e) => {
+            e.preventDefault();
             window.history.pushState(null, "", window.location.href);
         };
-        window.addEventListener("popstate", blockNavigation);
+
+        window.history.pushState(null, "", window.location.href);
+        window.addEventListener("popstate", blockNav);
+
         return () => {
-            window.removeEventListener("popstate", blockNavigation);
+            window.removeEventListener("popstate", blockNav);
         };
     }, []);
 

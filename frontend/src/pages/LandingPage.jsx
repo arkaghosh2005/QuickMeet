@@ -13,17 +13,6 @@ const LandingPage = () => {
     const { isDarkMode } = useTheme();
     const navigate = useNavigate();
 
-    useEffect(() => {
-        window.history.pushState(null, "", window.location.href);
-        const blockNavigation = () => {
-            window.history.pushState(null, "", window.location.href);
-        };
-        window.addEventListener("popstate", blockNavigation);
-        return () => {
-            window.removeEventListener("popstate", blockNavigation);
-        };
-    }, []);
-
     const handleGuestJoin = () => {
         const trimmedName = guestName.trim();
         if (trimmedName) {

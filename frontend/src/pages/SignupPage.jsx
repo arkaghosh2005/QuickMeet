@@ -15,18 +15,6 @@ const SignupPage = () => {
         retypePassword: "",
     });
 
-    useEffect(() => {
-        // Push a new history state
-        window.history.pushState(null, "", window.location.href);
-        const blockNavigation = () => {
-            window.history.pushState(null, "", window.location.href);
-        };
-        window.addEventListener("popstate", blockNavigation);
-        return () => {
-            window.removeEventListener("popstate", blockNavigation);
-        };
-    }, []);
-
     const [errors, setErrors] = useState({});
     const [successMessage, setSuccessMessage] = useState({});
     const { signup, loading } = useAuth();

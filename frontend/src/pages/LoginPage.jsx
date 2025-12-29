@@ -15,18 +15,6 @@ const LoginPage = () => {
     const { isDarkMode } = useTheme();
     const navigate = useNavigate();
 
-    useEffect(() => {
-        // Push a new history state
-        window.history.pushState(null, "", window.location.href);
-        const blockNavigation = () => {
-            window.history.pushState(null, "", window.location.href);
-        };
-        window.addEventListener("popstate", blockNavigation);
-        return () => {
-            window.removeEventListener("popstate", blockNavigation);
-        };
-    }, []);
-
     const validateForm = () => {
         const newErrors = {};
 
