@@ -286,7 +286,13 @@ const VideoCallPage = () => {
         // Check video and audio permissions in parallel
         const [videoOk, audioOk] = await Promise.all([
             checkDevice({ video: true }),
-            checkDevice({ audio: true })
+            checkDevice({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                }
+            })
         ]);
 
         // Update availability states
@@ -301,7 +307,11 @@ const VideoCallPage = () => {
             try {
                 const preview = await navigator.mediaDevices.getUserMedia({
                     video: videoOk && video,
-                    audio: audioOk && audio,
+                    audio: audioOk && audio ? {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                    } : false,
                 });
                 window.localStream = preview;
                 if (localVideoRef.current) {
@@ -325,8 +335,14 @@ const VideoCallPage = () => {
 
         if (!navigator.mediaDevices?.getUserMedia) return;
 
-        navigator.mediaDevices.getUserMedia({ video: wantVideo, audio: wantAudio })
-            .then(getUserMediaSuccess)
+        navigator.mediaDevices.getUserMedia({
+            video: wantVideo,
+            audio: wantAudio ? {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+            } : false,
+        }).then(getUserMediaSuccess)
             .catch(() => {
                 if (wantVideo) { setVideoAvailable(false); setVideo(false); }
                 if (wantAudio) { setAudioAvailable(false); setAudio(false); }
@@ -492,67 +508,63 @@ const VideoCallPage = () => {
                     };
 
                     pc.ontrack = (event) => {
-                        const track = event.track;
+                        const { track } = event;
+                        const { kind, label } = track;
 
-                        // Handle AUDIO tracks
-                        if (track.kind === 'audio') {
+                        // Helper to update or create video entry
+                        const updateVideos = (newTrack, isAudio = false) => {
                             setVideos(prev => {
                                 const existing = prev.find(v => v.socketId === peerId);
                                 if (existing) {
-                                    // Add audio track to existing stream
-                                    const newStream = new MediaStream(existing.stream.getTracks());
-                                    newStream.addTrack(track);
-                                    return prev.map(v => v.socketId === peerId ? { ...v, stream: newStream } : v);
-                                } else {
-                                    // Create new entry with just audio for now
-                                    return [...prev, {
-                                        socketId: peerId,
-                                        stream: new MediaStream([track]),
-                                        autoplay: true,
-                                        playsinline: true
-                                    }];
+                                    const tracks = [...existing.stream.getTracks()];
+                                    if (!isAudio) {
+                                        // For video: keep existing audio tracks
+                                        existing.stream.getAudioTracks().forEach(t => tracks.includes(t) || tracks.push(t));
+                                    }
+                                    return prev.map(v => v.socketId === peerId
+                                        ? { ...v, stream: new MediaStream(isAudio ? [...tracks, newTrack] : [newTrack, ...existing.stream.getAudioTracks()]) }
+                                        : v
+                                    );
                                 }
+                                return [...prev, {
+                                    socketId: peerId,
+                                    stream: new MediaStream([newTrack]),
+                                    autoplay: true,
+                                    playsinline: true
+                                }];
                             });
+                        };
+
+                        // Handle AUDIO tracks
+                        if (kind === 'audio') {
+                            updateVideos(track, true);
                             return;
                         }
 
-                        // Handle VIDEO tracks
-                        if (track.kind !== 'video') return;
+                        // Handle VIDEO tracks only
+                        if (kind !== 'video') return;
 
-                        const label = track.label.toLowerCase();
-                        const isScreenByLabel = ['screen', 'display', 'window', 'monitor']
-                            .some(k => label.includes(k)) || track.label.startsWith('screen:');
-                        const isScreenTrack = isScreenByLabel || peerCameraTracksRef.current[peerId] !== undefined;
+                        const isScreenTrack = ['screen', 'display', 'window', 'monitor']
+                            .some(k => label.toLowerCase().includes(k))
+                            || label.startsWith('screen:')
+                            || peerCameraTracksRef.current[peerId] !== undefined;
 
                         if (isScreenTrack) {
-                            const screenStream = new MediaStream([track]);
                             const userName = clients.find(c => c.socketId === peerId)?.userName
                                 || `User ${peerId.substring(0, 4)}`;
 
                             setScreenShares(prev => {
+                                const entry = { id: `screen-${peerId}`, socketId: peerId, name: userName, stream: new MediaStream([track]) };
                                 const exists = prev.find(s => s.socketId === peerId);
                                 return exists
-                                    ? prev.map(s => s.socketId === peerId ? { ...s, stream: screenStream, name: userName } : s)
-                                    : [...prev, { id: `screen-${peerId}`, socketId: peerId, name: userName, stream: screenStream }];
+                                    ? prev.map(s => s.socketId === peerId ? { ...s, ...entry } : s)
+                                    : [...prev, entry];
                             });
 
                             track.onended = () => setScreenShares(prev => prev.filter(s => s.socketId !== peerId));
                         } else {
                             peerCameraTracksRef.current[peerId] = track;
-
-                            setVideos(prev => {
-                                const existing = prev.find(v => v.socketId === peerId);
-                                if (existing) {
-                                    // Preserve existing audio tracks when adding video
-                                    const newStream = new MediaStream([track]);
-                                    existing.stream?.getAudioTracks().forEach(t => newStream.addTrack(t));
-                                    return prev.map(v => v.socketId === peerId ? { ...v, stream: newStream } : v);
-                                }
-                                return [...prev, {
-                                    socketId: peerId, stream: new MediaStream([track]),
-                                    autoplay: true, playsinline: true
-                                }];
-                            });
+                            updateVideos(track);
                         }
                     };
 

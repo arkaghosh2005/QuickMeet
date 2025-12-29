@@ -27,6 +27,15 @@ const PreCallPage = () => {
     }, []);
 
     useEffect(() => {
+        const navEntries = performance.getEntriesByType("navigation");
+        const isReload = navEntries.length > 0 && navEntries[0].type === "reload";
+
+        if (isReload) {
+            window.location.href = "/";
+            return;
+        }
+
+        // Block back navigation
         const blockNav = (e) => {
             e.preventDefault();
             window.history.pushState(null, "", window.location.href);
