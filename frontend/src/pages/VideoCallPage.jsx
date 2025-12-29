@@ -492,15 +492,40 @@ const VideoCallPage = () => {
                     };
 
                     pc.ontrack = (event) => {
-                        if (event.track.kind !== 'video') return;
+                        const track = event.track;
 
-                        const label = event.track.label.toLowerCase();
+                        // Handle AUDIO tracks
+                        if (track.kind === 'audio') {
+                            setVideos(prev => {
+                                const existing = prev.find(v => v.socketId === peerId);
+                                if (existing) {
+                                    // Add audio track to existing stream
+                                    const newStream = new MediaStream(existing.stream.getTracks());
+                                    newStream.addTrack(track);
+                                    return prev.map(v => v.socketId === peerId ? { ...v, stream: newStream } : v);
+                                } else {
+                                    // Create new entry with just audio for now
+                                    return [...prev, {
+                                        socketId: peerId,
+                                        stream: new MediaStream([track]),
+                                        autoplay: true,
+                                        playsinline: true
+                                    }];
+                                }
+                            });
+                            return;
+                        }
+
+                        // Handle VIDEO tracks
+                        if (track.kind !== 'video') return;
+
+                        const label = track.label.toLowerCase();
                         const isScreenByLabel = ['screen', 'display', 'window', 'monitor']
-                            .some(k => label.includes(k)) || event.track.label.startsWith('screen:');
+                            .some(k => label.includes(k)) || track.label.startsWith('screen:');
                         const isScreenTrack = isScreenByLabel || peerCameraTracksRef.current[peerId] !== undefined;
 
                         if (isScreenTrack) {
-                            const screenStream = new MediaStream([event.track]);
+                            const screenStream = new MediaStream([track]);
                             const userName = clients.find(c => c.socketId === peerId)?.userName
                                 || `User ${peerId.substring(0, 4)}`;
 
@@ -511,19 +536,20 @@ const VideoCallPage = () => {
                                     : [...prev, { id: `screen-${peerId}`, socketId: peerId, name: userName, stream: screenStream }];
                             });
 
-                            event.track.onended = () => setScreenShares(prev => prev.filter(s => s.socketId !== peerId));
+                            track.onended = () => setScreenShares(prev => prev.filter(s => s.socketId !== peerId));
                         } else {
-                            peerCameraTracksRef.current[peerId] = event.track;
+                            peerCameraTracksRef.current[peerId] = track;
 
                             setVideos(prev => {
                                 const existing = prev.find(v => v.socketId === peerId);
                                 if (existing) {
-                                    const newStream = new MediaStream([event.track]);
+                                    // Preserve existing audio tracks when adding video
+                                    const newStream = new MediaStream([track]);
                                     existing.stream?.getAudioTracks().forEach(t => newStream.addTrack(t));
                                     return prev.map(v => v.socketId === peerId ? { ...v, stream: newStream } : v);
                                 }
                                 return [...prev, {
-                                    socketId: peerId, stream: new MediaStream([event.track]),
+                                    socketId: peerId, stream: new MediaStream([track]),
                                     autoplay: true, playsinline: true
                                 }];
                             });
@@ -592,7 +618,15 @@ const VideoCallPage = () => {
     };
 
     const toggleSpeaker = () => {
-        setIsSpeakerOn(!isSpeakerOn);
+        const newSpeakerState = !isSpeakerOn;
+        setIsSpeakerOn(newSpeakerState);
+
+        // Mute/unmute all remote video elements
+        document.querySelectorAll('video').forEach(video => {
+            // Skip local video (which is already muted)
+            if (video === localVideoRef.current || video === screenVideoRef.current) return;
+            video.muted = !newSpeakerState;
+        });
     };
 
     const toggleChat = () => {
@@ -701,6 +735,7 @@ const VideoCallPage = () => {
                 key={`video-${participant.socketId}`}
                 autoPlay
                 playsInline
+                muted={!isSpeakerOn}
                 ref={(videoElement) => {
                     if (videoElement && videoElement.srcObject !== videoData.stream) {
                         videoElement.srcObject = videoData.stream;
