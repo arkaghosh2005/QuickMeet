@@ -207,9 +207,6 @@ const SignupPage = () => {
 
                     {/* Footer */}
                     <div className="mt-8 text-center">
-                        <div className="mb-4 flex justify-center">
-                            <DarkModeToggle />
-                        </div>
                         <p className={isDarkMode ? "text-gray-300" : "text-gray-600"}>
                             Already have an account?{" "}
                             <Link

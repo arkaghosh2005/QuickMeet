@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import io from "socket.io-client";
-import { Video, VideoOff, Mic, MicOff, PhoneOff, MessageSquare, Users, MoreVertical, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus } from "lucide-react";
 import Button from "../components/Button";
 import ChatPanel from "../components/ChatPanel";
 import { useAuth } from "../context/AuthContext";
@@ -25,12 +25,8 @@ const VideoCallPage = () => {
     let socketRef = useRef();
     let localVideoRef = useRef();
     let screenVideoRef = useRef();
-
-    // Store videos array in a ref for immediate access
-    let peerCameraTracksRef = useRef({});
-
-    // Store clients data from backend for reference
     let clientsRef = useRef([]);
+    let peerCameraTracksRef = useRef({});
 
     // Get initial state from PreCallPage
     const initialState = location.state || {
@@ -194,6 +190,15 @@ const VideoCallPage = () => {
             }
         };
     }, []);
+
+    // Sync local stream to video element when it becomes available
+    useEffect(() => {
+        if (localVideoRef.current && window.localStream) {
+            if (localVideoRef.current.srcObject !== window.localStream) {
+                localVideoRef.current.srcObject = window.localStream;
+            }
+        }
+    }, [participants]);
 
     let silence = () => {
         let ctx = new AudioContext()
@@ -684,7 +689,8 @@ const VideoCallPage = () => {
             return (
                 <video ref={localVideoRef} autoPlay muted playsInline
                     style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
-                    className="w-full h-full object-contain bg-black" />
+                    className="w-full h-full object-contain bg-black"
+                />
             );
         }
 
@@ -720,7 +726,7 @@ const VideoCallPage = () => {
                             onClick={copyMeetingCode}
                             variant="ghost"
                             size="sm"
-                            className="text-gray-300 hover:text-white hover:bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
+                            className="!text-gray-300 !hover:text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                         >
                             <Copy className="w-4 h-4" />
                         </Button>
@@ -735,7 +741,7 @@ const VideoCallPage = () => {
                         onClick={toggleParticipants}
                         variant="ghost"
                         size="sm"
-                        className="text-gray-300 hover:text-white hover:bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
+                        className="!text-gray-300 !hover:text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                     >
                         <Users className="w-4 h-4" />
                     </Button>
@@ -942,12 +948,6 @@ const VideoCallPage = () => {
                             {newMessages > 0 && !isChatOpen && (
                                 <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full"></span>
                             )}
-                        </Button>
-
-                        <Button
-                            variant="ghost"
-                            className="rounded-full p-3 hover:bg-gray-700">
-                            <MoreVertical className="w-5 h-5 text-white" />
                         </Button>
 
                         <Button

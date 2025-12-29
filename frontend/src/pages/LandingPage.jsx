@@ -105,8 +105,8 @@ const LandingPage = () => {
                         className={`text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"
                             }`}
                     >
-                        Connect with anyone,
-                        <span className="text-blue-600 block">anywhere</span>
+                        Connect with Anyone,
+                        <span className="text-blue-600 block">Anywhere</span>
                     </h1>
                     <p
                         className={`text-xl mb-8 max-w-3xl mx-auto ${isDarkMode ? "text-gray-300" : "text-gray-600"

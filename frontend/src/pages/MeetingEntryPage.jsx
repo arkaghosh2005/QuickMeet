@@ -40,8 +40,8 @@ const MeetingEntryPage = () => {
             setError('Please enter a meeting code');
             return;
         }
-        if (trimmedCode.length < 8) {
-            setError('Please enter a valid meeting code');
+        if (!/^[A-Z0-9]{3}-[A-Z0-9]{4}-[A-Z0-9]{3}$/.test(trimmedCode)) {
+            setError('Code must be in the correct format (A1B-C23D-4E5)');
             return;
         }
         setError('');
@@ -145,7 +145,7 @@ const MeetingEntryPage = () => {
                         <div className="space-y-4">
                             <Input
                                 type="text"
-                                placeholder="Enter meeting code (e.g., ABC-1234-XYZ)"
+                                placeholder="Enter Meeting Code"
                                 value={meetingCode}
                                 onChange={handleMeetingCodeChange}
                                 className={`w-full px-4 py-2 border rounded-lg text-center text-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode
