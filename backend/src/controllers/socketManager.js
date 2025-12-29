@@ -26,67 +26,38 @@ export const connectToSocket = (server) => {
 
 
     io.on("connection", (socket) => {
-        console.log("✅ User connected:", socket.id)
         timeOnline[socket.id] = new Date();
 
-        socket.on("join-call", (data) => {
-            const { roomUrl, userName, userRole, video, audio, timestamp } = data;
+        socket.on("join-call", ({ roomUrl, userName, userRole, video, audio }) => {
+            if (!connections[roomUrl]) connections[roomUrl] = [];
 
-            console.log("User joined:", {
-                socketId: socket.id,
-                name: userName,
-                role: userRole,
-                av: { video, audio },
-                time: timestamp
-            });
+            connections[roomUrl].push({ socketId: socket.id, userName, userRole, video, audio });
 
-            const path = roomUrl;
+            // Notify all participants (including new user) about the updated list
+            connections[roomUrl].forEach(user =>
+                io.to(user.socketId).emit("user-joined", socket.id, connections[roomUrl])
+            );
 
-            if (connections[path] === undefined) {
-                connections[path] = []
-            }
+            // Send existing chat history to new user
+            messages[roomUrl]?.forEach(msg =>
+                io.to(socket.id).emit("chat-message", msg.data, msg.sender, msg["socket-id-sender"])
+            );
+        });
 
-            // Store user info with socket
-            connections[path].push({
-                socketId: socket.id,
-                userName: userName,
-                userRole: userRole,
-                video: video,
-                audio: audio
-            });
-
-            const existingParticipants = [...connections[path]];
-            existingParticipants.forEach((participant) => {
-                io.to(participant.socketId).emit("user-joined", socket.id, connections[path]);
-            });
-
-            if (messages[path] !== undefined) {
-                for (let a = 0; a < messages[path].length; ++a) {
-                    io.to(socket.id).emit("chat-message", messages[path][a]['data'],
-                        messages[path][a]['sender'], messages[path][a]['socket-id-sender'])
-                }
-            }
-        })
-
-        socket.on("update-media-state", (data) => {
-            const { video, audio } = data;
-
-            // Find user's room and update their state
+        socket.on("update-media-state", ({ video, audio }) => {
             for (const [roomKey, roomUsers] of Object.entries(connections)) {
-                const userIndex = roomUsers.findIndex(user => user.socketId === socket.id);
+                const user = roomUsers.find(user=> user.socketId === socket.id);
+                if (!user) continue;
 
-                if (userIndex !== -1) {
-                    // Update user's media state
-                    connections[roomKey][userIndex].video = video;
-                    connections[roomKey][userIndex].audio = audio
-                    roomUsers.forEach((user) => {
-                        if (user.socketId !== socket.id) {
-                            io.to(user.socketId).emit("user-media-state-changed", socket.id, { video, audio });
-                        }
-                    });
+                // Update user's media state
+                Object.assign(user, { video, audio });
 
-                    break;
-                }
+                // Notify other users in the room
+                roomUsers
+                    .filter(user => user.socketId !== socket.id)
+                    .forEach(user => io.to(user.socketId).emit("user-media-state-changed", socket.id, { video, audio }));
+
+                break;
             }
         });
 
@@ -95,89 +66,57 @@ export const connectToSocket = (server) => {
         })
 
         socket.on("chat-message", (data, sender) => {
-            const [matchingRoom, found] = Object.entries(connections)
-                .reduce(([room, isFound], [roomKey, roomValue]) => {
-                    if (!isFound && roomValue.some(user => user.socketId === socket.id)) {
-                        return [roomKey, true];
-                    }
-                    return [room, isFound];
-                }, ['', false]);
-            if (found === true) {
-                if (messages[matchingRoom] === undefined) {
-                    messages[matchingRoom] = []
-                }
-                messages[matchingRoom].push({ 'sender': sender, "data": data, "socket-id-sender": socket.id })
-                connections[matchingRoom].forEach((user) => {
-                    io.to(user.socketId).emit("chat-message", data, sender, socket.id)
-                })
-            }
-        })
+            const room = Object.keys(connections).find(key =>
+                connections[key].some(user => user.socketId === socket.id)
+            );
+            if (!room) return;
 
-        socket.on("screen-share-started", (sharerName) => {
-            const [matchingRoom, found] = Object.entries(connections)
-                .reduce(([room, isFound], [roomKey, roomValue]) => {
-                    if (!isFound && roomValue.some(user => user.socketId === socket.id)) {
-                        return [roomKey, true];
-                    }
-                    return [room, isFound];
-                }, ['', false]);
+            if (!messages[room]) messages[room] = [];
+            messages[room].push({ sender, data, "socket-id-sender": socket.id });
 
-            if (found === true) {
-                connections[matchingRoom].forEach((user) => {
-                    if (user.socketId !== socket.id) {
-                        io.to(user.socketId).emit("user-started-screen-share", socket.id, sharerName);
-                    }
-                });
-            }
+            connections[room].forEach(user =>
+                io.to(user.socketId).emit("chat-message", data, sender, socket.id)
+            );
         });
 
-        socket.on("screen-share-stopped", () => {
-            const [matchingRoom, found] = Object.entries(connections)
-                .reduce(([room, isFound], [roomKey, roomValue]) => {
-                    if (!isFound && roomValue.some(user => user.socketId === socket.id)) {
-                        return [roomKey, true];
-                    }
-                    return [room, isFound];
-                }, ['', false]);
+        socket.on("screen-share-toggle", (isSharing, sharerName) => {
+            const room = Object.keys(connections).find(key =>
+                connections[key].some(user => user.socketId === socket.id)
+            );
+            if (!room) return;
 
-            if (found === true) {
-                connections[matchingRoom].forEach((user) => {
-                    if (user.socketId !== socket.id) {
-                        io.to(user.socketId).emit("user-stopped-screen-share", socket.id);
-                    }
-                });
-            }
+            const event = isSharing ? "user-started-screen-share" : "user-stopped-screen-share";
+            const args = isSharing ? [socket.id, sharerName] : [socket.id];
+
+            connections[room]
+                .filter(user => user.socketId !== socket.id)
+                .forEach(user => io.to(user.socketId).emit(event, ...args));
         });
 
         socket.on("disconnect", () => {
-            console.log(`❌ User disconnected: ${socket.id}`);
-            var diffTime = Math.abs(timeOnline[socket.id] - new Date());
-            var key;
+            const room = Object.keys(connections).find(key =>
+                connections[key].some(user => user.socketId === socket.id)
+            );
 
-            for (const [room, persons] of JSON.parse(JSON.stringify(Object.entries(connections)))) {
-                for (let person = 0; person < persons.length; ++person) {
-                    if (persons[person].socketId === socket.id) {
-                        key = room;
+            if (room) {
+                // Notify all users in the room
+                connections[room].forEach(user =>
+                    io.to(user.socketId).emit("user-left", socket.id)
+                );
 
-                        for (let person = 0; person < connections[key].length; ++person) {
-                            io.to(connections[key][person].socketId).emit('user-left', socket.id)
-                        }
+                // Remove disconnected user
+                connections[room] = connections[room].filter(user => user.socketId !== socket.id);
 
-                        var index = connections[key].findIndex(user => user.socketId === socket.id);
-                        connections[key].splice(index, 1);
-                        if (connections[key].length === 0) {
-                            delete connections[key];
-                            if (messages[key]) {
-                                delete messages[key];
-                                console.log(`🗑️ Messages cleared for room: ${key}`);
-                            }
-                        }
+                // Cleanup empty room
+                if (connections[room].length === 0) {
+                    delete connections[room];
+                    if (messages[room]) {
+                        delete messages[room];
                     }
                 }
             }
-
             delete timeOnline[socket.id];
-        })
+        });
     })
     return io;
 }
