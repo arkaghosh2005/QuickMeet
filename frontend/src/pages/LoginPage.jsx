@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Video, ArrowLeft } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import DarkModeToggle from '../components/DarkModeToggle';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
