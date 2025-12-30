@@ -61,8 +61,17 @@ const VideoCallPage = () => {
     // Real participants data - Dynamically tracked from socket
     const [participants, setParticipants] = useState([]);
 
-    // Block back navigation
+
     useEffect(() => {
+        const navEntries = performance.getEntriesByType("navigation");
+        const isReload = navEntries.length > 0 && navEntries[0].type === "reload";
+
+        if (isReload) {
+            window.location.href = "/";
+            return;
+        }
+
+        // Block back navigation
         const blockNav = (e) => {
             e.preventDefault();
             window.history.pushState(null, "", window.location.href);
@@ -126,7 +135,7 @@ const VideoCallPage = () => {
         );
     }, [videos, screenShares]);
 
-    // Calculate layout based on screen shares and participants
+        // Calculate layout based on screen shares and participants
     const layoutData = useMemo(() => {
         const TOTAL_SLOTS = 8;
 
@@ -161,11 +170,24 @@ const VideoCallPage = () => {
 
         // Grid class based on participant count (only when no screen shares)
         const count = participants.length;
-        const gridClass = screenCount > 0
-            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr"
-            : count <= 2
-                ? `grid grid-cols-1 ${count === 2 ? "sm:grid-cols-2" : ""} gap-4 h-full`
-                : `grid grid-cols-1 sm:grid-cols-2 ${count > 4 ? "lg:grid-cols-4" : ""} gap-4 auto-rows-fr`;
+        let gridClass;
+
+        if (screenCount > 0) {
+            gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr";
+        } else if (count === 1) {
+            gridClass = "grid grid-cols-1 gap-4 h-full";
+        } else if (count === 2) {
+            gridClass = "grid grid-cols-1 sm:grid-cols-2 gap-4 h-full";
+        } else if (count <= 4) {
+            // 3-4 participants: 2x2 grid that fills the space
+            gridClass = "grid grid-cols-1 sm:grid-cols-2 grid-rows-2 gap-4 h-full";
+        } else if (count <= 6) {
+            // 5-6 participants: 3x2 grid
+            gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 grid-rows-2 gap-4 h-full";
+        } else {
+            // 7+ participants: 4 columns, auto rows
+            gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr";
+        }
 
         return {
             screenShares: allScreenShares,
@@ -722,11 +744,8 @@ const VideoCallPage = () => {
     };
 
     const getParticipantSpanClass = () => {
-        const { totalParticipantCount, screenShareCount } = layoutData;
+        const { screenShareCount } = layoutData;
         if (screenShareCount > 0) return "";
-        if (totalParticipantCount === 1) {
-            return "col-span-1 row-span-2";
-        }
         return "";
     };
 
@@ -809,9 +828,9 @@ const VideoCallPage = () => {
 
             {/* Main Content */}
             <div className="flex-1 flex overflow-hidden">
-                <div className={`flex-1 relative ${isChatOpen ? "md:mr-80" : ""}`}>
-                    <div className="h-full p-4 overflow-y-auto">
-                        <div className={getGridClasses()}>
+                <div className={`flex-1 relative`}>
+                    <div className="h-full p-4 pb-20 md:pb-24 overflow-hidden">
+                        <div className={`${getGridClasses()} h-full`}>
                             {/* Render Screen Shares First */}
                             {layoutData.screenShares.map((share, index) => (
                                 <div
@@ -940,75 +959,75 @@ const VideoCallPage = () => {
                     </div>
 
                     {/* Controls */}
-                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center space-x-4 bg-gray-800 rounded-full px-6 py-3 shadow-2xl z-20">
+                    <div className="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 md:space-x-4 bg-gray-800 rounded-full px-3 py-2 md:px-6 md:py-3 shadow-2xl z-20 max-w-[95vw]">
                         <Button
                             onClick={toggleAudio}
                             variant={audio ? "ghost" : "danger"}
-                            className={`rounded-full p-3 ${audio ? "hover:bg-gray-700" : ""}`}
+                            className={`rounded-full p-2 md:p-3 ${audio ? "hover:bg-gray-700" : ""}`}
                         >
                             {audio ? (
-                                <Mic className="w-5 h-5 text-white" />
+                                <Mic className="w-4 h-4 md:w-5 md:h-5 text-white" />
                             ) : (
-                                <MicOff className="w-5 h-5" />
+                                <MicOff className="w-4 h-4 md:w-5 md:h-5" />
                             )}
                         </Button>
 
                         <Button
                             onClick={toggleVideo}
                             variant={video ? "ghost" : "danger"}
-                            className={`rounded-full p-3 ${video ? "hover:bg-gray-700" : ""}`}
+                            className={`rounded-full p-2 md:p-3 ${video ? "hover:bg-gray-700" : ""}`}
                         >
                             {video ? (
-                                <Video className="w-5 h-5 text-white" />
+                                <Video className="w-4 h-4 md:w-5 md:h-5 text-white" />
                             ) : (
-                                <VideoOff className="w-5 h-5" />
+                                <VideoOff className="w-4 h-4 md:w-5 md:h-5" />
                             )}
                         </Button>
 
                         <Button
                             onClick={toggleSpeaker}
                             variant={isSpeakerOn ? "ghost" : "danger"}
-                            className="rounded-full p-3 hover:bg-gray-700">
+                            className="rounded-full p-2 md:p-3 hover:bg-gray-700">
                             {isSpeakerOn ? (
-                                <Volume2 className="w-5 h-5 text-white" />
+                                <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-white" />
                             ) : (
-                                <VolumeX className="w-5 h-5 text-white" />
+                                <VolumeX className="w-4 h-4 md:w-5 md:h-5 text-white" />
                             )}
                         </Button>
 
                         <Button
                             onClick={toggleScreenShare}
                             variant={screenShare ? "danger" : "ghost"}
-                            className="rounded-full p-3 hover:bg-gray-700">
+                            className="rounded-full p-2 md:p-3 hover:bg-gray-700 hidden sm:flex">
                             {screenShare ? (
-                                <MonitorOff className="w-5 h-5 text-white" />
+                                <MonitorOff className="w-4 h-4 md:w-5 md:h-5 text-white" />
                             ) : (
-                                <Monitor className="w-5 h-5 text-white" />
+                                <Monitor className="w-4 h-4 md:w-5 md:h-5 text-white" />
                             )}
                         </Button>
 
                         <Button
                             onClick={toggleChat}
                             variant={isChatOpen ? "danger" : "ghost"}
-                            className="rounded-full p-3 hover:bg-gray-700 relative">
-                            <MessageSquare className="w-5 h-5 text-white" />
+                            className="rounded-full p-2 md:p-3 hover:bg-gray-700 relative">
+                            <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-white" />
                             {newMessages > 0 && !isChatOpen && (
-                                <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+                                <span className="absolute top-0 right-0 md:top-1 md:right-1 w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full"></span>
                             )}
                         </Button>
 
                         <Button
                             onClick={handleEndCall}
                             variant="danger"
-                            className="rounded-full p-3">
-                            <PhoneOff className="w-5 h-5" />
+                            className="rounded-full p-2 md:p-3">
+                            <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
                         </Button>
                     </div>
                 </div>
 
-                {/* Desktop Chat Panel */}
+                {/* Floating Chat Panel - Works on both mobile and desktop */}
                 {isChatOpen && (
-                    <div className="w-80 border-l border-gray-700 hidden md:block">
+                    <div className="fixed inset-4 md:inset-auto md:right-4 md:bottom-24 md:top-20 md:w-96 z-50 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
                         <ChatPanel
                             isOpen={true}
                             onClose={() => setIsChatOpen(false)}
