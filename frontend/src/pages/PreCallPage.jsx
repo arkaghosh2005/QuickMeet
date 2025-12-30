@@ -17,6 +17,7 @@ const PreCallPage = () => {
     // Device Permissions
     let [videoAvailable, setVideoAvailable] = useState(true);
     let [audioAvailable, setAudioAvailable] = useState(true);
+    const [aspectRatio, setAspectRatio] = useState(16 / 9);
 
     // User Toggles
     let [video, setVideo] = useState(true);
@@ -27,14 +28,6 @@ const PreCallPage = () => {
     }, []);
 
     useEffect(() => {
-        const navEntries = performance.getEntriesByType("navigation");
-        const isReload = navEntries.length > 0 && navEntries[0].type === "reload";
-
-        if (isReload) {
-            window.location.href = "/";
-            return;
-        }
-
         // Block back navigation
         const blockNav = (e) => {
             e.preventDefault();
@@ -236,8 +229,7 @@ const PreCallPage = () => {
                     <Button
                         variant="ghost"
                         onClick={() => window.location.href = "/"}
-                        className="absolute top-4 left-4 text-white hover:bg-gray-800"
-                    >
+                        className="absolute top-4 left-4 text-white hover:bg-gray-800">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
                     </Button>
@@ -253,15 +245,19 @@ const PreCallPage = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Video Preview */}
                     <div className="lg:col-span-2">
-                        <div className="relative bg-gray-800 rounded-2xl overflow-hidden flex items-center justify-center min-h-[400px]">
+                        <div 
+                            className="relative bg-gray-800 rounded-2xl overflow-hidden flex items-center justify-center"
+                            style={{ aspectRatio }}
+                        >
                             {video ? (
                                 <video
                                     ref={localVideoref}
                                     autoPlay
                                     muted
                                     playsInline
+                                    onLoadedMetadata={(e) => setAspectRatio(e.target.videoWidth / e.target.videoHeight)}
                                     style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
-                                    className="w-full h-full object-contain"
+                                    className="w-full h-full object-cover"
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center">
@@ -278,9 +274,7 @@ const PreCallPage = () => {
                                 <Button
                                     onClick={toggleVideo}
                                     variant={video ? "ghost" : "danger"}
-                                    className={`rounded-full p-3 ${video ? "bg-gray-700 hover:bg-gray-600" : ""
-                                        }`}
-                                >
+                                    className={`rounded-full p-3 ${video ? "bg-gray-700 hover:bg-gray-600" : ""}`}>
                                     {video ? (
                                         <Video className="w-5 h-5 text-white" />
                                     ) : (
@@ -290,9 +284,7 @@ const PreCallPage = () => {
                                 <Button
                                     onClick={toggleAudio}
                                     variant={audio ? "ghost" : "danger"}
-                                    className={`rounded-full p-3 ${audio ? "bg-gray-700 hover:bg-gray-600" : ""
-                                        }`}
-                                >
+                                    className={`rounded-full p-3 ${audio ? "bg-gray-700 hover:bg-gray-600" : ""}`}>
                                     {audio ? (
                                         <Mic className="w-5 h-5 text-white" />
                                     ) : (
@@ -329,8 +321,7 @@ const PreCallPage = () => {
                                         <Button
                                             onClick={toggleVideo}
                                             variant={video ? "secondary" : "outline"}
-                                            size="sm"
-                                        >
+                                            size="sm">
                                             {video ? "On" : "Off"}
                                         </Button>
                                     </div>
@@ -340,8 +331,7 @@ const PreCallPage = () => {
                                         <Button
                                             onClick={toggleAudio}
                                             variant={audio ? "secondary" : "outline"}
-                                            size="sm"
-                                        >
+                                            size="sm">
                                             {audio ? "On" : "Off"}
                                         </Button>
                                     </div>
@@ -354,8 +344,7 @@ const PreCallPage = () => {
                                     onClick={handleJoinCall}
                                     className="w-full"
                                     size="lg"
-                                    disabled={!displayName.trim()}
-                                >
+                                    disabled={!displayName.trim()}>
                                     Join Meeting
                                     <ArrowRight className="w-5 h-5 ml-2" />
                                 </Button>

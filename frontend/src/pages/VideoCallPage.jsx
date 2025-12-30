@@ -63,14 +63,6 @@ const VideoCallPage = () => {
 
 
     useEffect(() => {
-        const navEntries = performance.getEntriesByType("navigation");
-        const isReload = navEntries.length > 0 && navEntries[0].type === "reload";
-
-        if (isReload) {
-            window.location.href = "/";
-            return;
-        }
-
         // Block back navigation
         const blockNav = (e) => {
             e.preventDefault();
@@ -135,7 +127,7 @@ const VideoCallPage = () => {
         );
     }, [videos, screenShares]);
 
-        // Calculate layout based on screen shares and participants
+    // Calculate layout based on screen shares and participants
     const layoutData = useMemo(() => {
         const TOTAL_SLOTS = 8;
 
@@ -177,15 +169,13 @@ const VideoCallPage = () => {
         } else if (count === 1) {
             gridClass = "grid grid-cols-1 gap-4 h-full";
         } else if (count === 2) {
-            gridClass = "grid grid-cols-1 sm:grid-cols-2 gap-4 h-full";
+            gridClass = "grid grid-cols-1 sm:grid-cols-2 gap-4 h-full sm:h-full";
         } else if (count <= 4) {
-            // 3-4 participants: 2x2 grid that fills the space
-            gridClass = "grid grid-cols-1 sm:grid-cols-2 grid-rows-2 gap-4 h-full";
+            // Mobile: stack vertically with min height, Desktop: 2x2 grid
+            gridClass = "grid grid-cols-1 sm:grid-cols-2 gap-4 sm:grid-rows-2 sm:h-full";
         } else if (count <= 6) {
-            // 5-6 participants: 3x2 grid
-            gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 grid-rows-2 gap-4 h-full";
+            gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:grid-rows-2 sm:h-full";
         } else {
-            // 7+ participants: 4 columns, auto rows
             gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr";
         }
 
@@ -829,13 +819,13 @@ const VideoCallPage = () => {
             {/* Main Content */}
             <div className="flex-1 flex overflow-hidden">
                 <div className={`flex-1 relative`}>
-                    <div className="h-full p-4 pb-20 md:pb-24 overflow-hidden">
-                        <div className={`${getGridClasses()} h-full`}>
+                    <div className="h-full p-4 pb-20 md:pb-24 overflow-y-auto md:overflow-hidden">
+                        <div className={`${getGridClasses()} min-h-full md:h-full`}>
                             {/* Render Screen Shares First */}
                             {layoutData.screenShares.map((share, index) => (
                                 <div
                                     key={`screen-${share.id}-${index}`}
-                                    className={`relative bg-gray-800 rounded-lg overflow-hidden ${layoutData.screenShareCount === 1
+                                    className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${layoutData.screenShareCount === 1
                                         ? "lg:col-span-3 lg:row-span-2"
                                         : layoutData.screenShareCount === 2 && index < 2
                                             ? "lg:col-span-3"
@@ -874,7 +864,7 @@ const VideoCallPage = () => {
                             {layoutData.visibleVideoOnParticipants.map((participant) => (
                                 <div
                                     key={`participant-on-${participant.id}`}
-                                    className={`relative bg-gray-800 rounded-lg overflow-hidden ${getParticipantSpanClass()}`}
+                                    className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
                                 >
                                     {participant.video ? (
                                         getParticipantVideoElement(participant)
@@ -910,7 +900,7 @@ const VideoCallPage = () => {
                             {layoutData.visibleVideoOffParticipants.map((participant) => (
                                 <div
                                     key={`participant-off-${participant.id}`}
-                                    className={`relative bg-gray-800 rounded-lg overflow-hidden ${getParticipantSpanClass()}`}
+                                    className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
                                 >
                                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
                                         <div className="w-20 h-20 bg-gray-600 rounded-full flex items-center justify-center">
@@ -942,7 +932,7 @@ const VideoCallPage = () => {
                                 <div
                                     key="overflow-indicator"
                                     onClick={toggleParticipants}
-                                    className={`relative bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors ${getParticipantSpanClass()}`}
+                                    className={`relative bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
                                 >
                                     <div className="w-full h-full flex flex-col items-center justify-center">
                                         <UserPlus className="w-12 h-12 text-gray-400 mb-3" />
