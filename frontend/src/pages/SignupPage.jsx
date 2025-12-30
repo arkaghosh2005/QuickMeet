@@ -21,6 +21,21 @@ const SignupPage = () => {
     const { isDarkMode } = useTheme();
     const navigate = useNavigate();
 
+    useEffect(() => {
+        // Block back navigation
+        const blockNav = (e) => {
+            e.preventDefault();
+            window.history.pushState(null, "", window.location.href);
+        };
+
+        window.history.pushState(null, "", window.location.href);
+        window.addEventListener("popstate", blockNav);
+
+        return () => {
+            window.removeEventListener("popstate", blockNav);
+        };
+    }, []);
+
     const validateForm = () => {
         const newErrors = {};
 

@@ -13,6 +13,23 @@ const LandingPage = () => {
     const { isDarkMode } = useTheme();
     const navigate = useNavigate();
 
+    useEffect(() => {
+        const cameFromInternal = location.state?.fromLogout || document.referrer.includes(window.location.origin);
+        if (!cameFromInternal) return;
+
+        const blockNav = (e) => {
+            e.preventDefault();
+            window.history.pushState(null, "", window.location.href);
+        };
+
+        window.history.pushState(null, "", window.location.href);
+        window.addEventListener("popstate", blockNav);
+
+        return () => {
+            window.removeEventListener("popstate", blockNav);
+        };
+    }, [location.state]);
+
     const handleGuestJoin = () => {
         const trimmedName = guestName.trim();
         if (trimmedName) {

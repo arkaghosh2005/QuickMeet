@@ -57,7 +57,7 @@ const MeetingEntryPage = () => {
 
     const handleLogout = () => {
         logout();
-        navigate('/');
+        navigate("/", { state: { fromLogout: true } });
     };
 
     const handleMeetingCodeChange = (event) => {
