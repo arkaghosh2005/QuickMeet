@@ -1,11 +1,429 @@
-# QuickMeet - Real-Time Video Conferencing Platform
+# QuickMeet : Real-Time Video Conferencing Platform
 
 <div align="center">
 
-![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-18.x-339933?style=for-the-badge&logo=node.js&logoColor=white)
-![WebRTC](https://img.shields.io/badge/WebRTC-Enabled-FF6B6B?style=for-the-badge&logo=webrtc&logoColor=white)
-![Socket.io](https://img.shields.io/badge/Socket.io-4.x-010101?style=for-the-badge&logo=socket.io&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![QuickMeet](https://img.shields.io/badge/QuickMeet-Video_Conferencing_Website-4F46E5?style=for-the-badge)
 
-**A fully-featured video conferencing platform similar to Zoom/Google Meet, built from scratch using modern web technologies.**
+![React](https://img.shields.io/badge/React-19.2.3-61DAFB?style=for-the-badge&logo=react&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-24.x-339933?style=for-the-badge&logo=node.js&logoColor=white)
+![WebRTC](https://img.shields.io/badge/WebRTC-Enabled-FF6B6B?style=for-the-badge&logo=webrtc&logoColor=white)
+![Socket.io](https://img.shields.io/badge/Socket.io-4.8.1-010101?style=for-the-badge&logo=socket.io&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.3.6-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-9.x-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![Express](https://img.shields.io/badge/Express-5.2.1-000000?style=for-the-badge&logo=express&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-7.3.0-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+
+**A fully-featured, responsive video conferencing platform similar to Zoom/Google Meet, built from scratch using modern web technologies with WebRTC peer-to-peer connections.**
+
+</div>
+
+---
+
+## 📋 Table of Contents
+
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [System Architecture](#-system-architecture)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Environment Variables](#-environment-variables)
+- [API Reference](#-api-reference)
+- [Application Flow](#-application-flow)
+- [License](#-license)
+
+---
+
+## ✨ Features
+
+### 🎥 Core Video Features
+| Feature | Description |
+|---------|-------------|
+| **Real-time Video Calls** | High-quality peer-to-peer video using WebRTC with multiple STUN servers |
+| **Screen Sharing** | Share entire screen or specific windows with other participants |
+| **Audio/Video Controls** | Toggle camera and microphone on/off during calls with instant sync |
+| **Speaker Toggle** | Mute/unmute all incoming audio from remote participants |
+| **Pre-Call Setup** | Preview video, configure display name and AV settings before joining |
+| **Auto Aspect Ratio** | Video preview automatically adjusts to match webcam's native aspect ratio |
+
+### 👤 User Experience
+| Feature | Description |
+|---------|-------------|
+| **Fully Responsive Design** | Adaptive layouts for desktop, tablet, and mobile devices |
+| **Dark/Light Theme** | Toggle themes with persistent localStorage preferences |
+| **User Authentication** | Secure token-based login and registration with bcrypt hashing |
+| **Guest Access** | Join meetings without creating an account |
+| **Custom Display Names** | Set your name for each meeting session |
+| **Meeting Code Copy** | One-click copy meeting code with toast notification |
+
+### 🎮 Meeting Controls
+| Feature | Description |
+|---------|-------------|
+| **Host Identification** | Visual indicators for meeting host |
+| **Participant Panel** | View all attendees with their audio/video status |
+| **Real-time Chat** | In-meeting text messaging with floating panel design |
+| **Adaptive Grid Layout** | Smart grid that adjusts based on participant count (1-8+) |
+| **Screen Share Priority** | Screen shares get prominent display positioning |
+| **Overflow Indicator** | Shows "+N more" when participants exceed grid capacity |
+
+### 🔒 Security & Stability
+| Feature | Description |
+|---------|-------------|
+| **Peer-to-Peer Encryption** | Secure WebRTC connections via STUN servers |
+| **Token Authentication** | Crypto-generated session tokens |
+| **Password Hashing** | bcrypt with salt rounds for secure storage |
+| **Back Navigation Block** | Prevents accidental meeting exits via browser back button |
+| **Connection Recovery** | Handles peer disconnections gracefully |
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend Technologies
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| React | 19.2.3 | UI Framework with Hooks |
+| React Router DOM | 7.11.0 | Client-side Routing & Navigation |
+| Tailwind CSS | 3.3.6 | Utility-first CSS Styling |
+| Lucide React | 0.562.0 | Modern SVG Icon Library |
+| Socket.io Client | 4.8.1 | Real-time WebSocket Communication |
+| Axios | 1.13.2 | HTTP Client for API Calls |
+| Vite | 7.3.0 | Next-gen Build Tool & Dev Server |
+| TypeScript | 5.9.3 | Type Checking (Config only) |
+
+### Backend Technologies
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Node.js | 24.x | JavaScript Runtime |
+| Express.js | 5.2.1 | Web Application Framework |
+| Socket.io | 4.8.1 | WebSocket Server for Signaling |
+| MongoDB | Cloud | NoSQL Database |
+| Mongoose | 9.0.2 | MongoDB ODM |
+| bcrypt | 6.0.0 | Password Hashing |
+| crypto | Built-in | Token Generation |
+| CORS | 2.8.5 | Cross-Origin Resource Sharing |
+
+### WebRTC Infrastructure
+| Component | Purpose |
+|-----------|---------|
+| RTCPeerConnection | Peer-to-peer media connections |
+| MediaStream API | Camera, microphone, and screen capture |
+| STUN Servers | NAT traversal for peer discovery |
+| ICE Candidates | Connection establishment |
+
+---
+
+## 🏗 System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CLIENT (React + Vite)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │  Landing    │  │   Login/    │  │  Meeting    │  │     Video Call      │ │
+│  │   Page      │  │   Signup    │  │   Entry     │  │       Page          │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+│         │               │               │                    │              │
+│  ┌──────┴───────────────┴───────────────┴────────────────────┴───────────┐  │
+│  │                        Context Providers                              │  │
+│  │  ┌─────────────────────────┐  ┌─────────────────────────────────────┐ │  │
+│  │  │      AuthContext        │  │         ThemeContext                │ │  │
+│  │  │  - userData state       │  │  - isDarkMode state                 │ │  │
+│  │  │  - login/signup/logout  │  │  - toggleTheme()                    │ │  │
+│  │  │  - loginAsGuest()       │  │  - localStorage persistence         │ │  │
+│  │  └─────────────────────────┘  └─────────────────────────────────────┘ │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                         ┌────────────┴────────────┐
+                         │      Socket.io          │
+                         │   (Real-time Events)    │
+                         └────────────┬────────────┘
+                                      │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SERVER (Node.js + Express)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                         Socket Manager                                │  │
+│  │  - join-call          - signal (WebRTC)      - chat-message          │  │
+│  │  - user-joined        - update-media-state   - screen-share-toggle   │  │
+│  │  - user-left          - disconnect           - user-media-state      │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                         REST API Routes                               │  │
+│  │  POST /v1/users/signup     - Register new user                        │  │
+│  │  POST /v1/users/login      - Authenticate user                        │  │
+│  │  GET  /v1/users/history    - Get meeting history                      │  │
+│  │  POST /v1/users/history    - Add meeting to history                   │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                         ┌────────────┴────────────┐
+                         │       MongoDB           │
+                         │  - Users Collection     │
+                         │  - Meetings Collection  │
+                         └─────────────────────────┘
+```
+
+---
+
+## 📁 Project Structure
+
+```
+quickmeet/
+├── frontend/                          # React Frontend Application
+│   ├── public/                        # Static assets
+│   ├── src/
+│   │   ├── components/                # Reusable UI Components
+│   │   │   ├── Button.jsx             # Custom button with variants
+│   │   │   ├── ChatPanel.jsx          # Floating chat interface
+│   │   │   ├── DarkModeToggle.jsx     # Theme switch component
+│   │   │   ├── Input.jsx              # Styled input fields
+│   │   │   └── LoadingSpinner.jsx     # Loading indicator
+│   │   │
+│   │   ├── context/                   # React Context Providers
+│   │   │   ├── AuthContext.jsx        # Authentication state & methods
+│   │   │   └── ThemeContext.jsx       # Dark/Light theme management
+│   │   │
+│   │   ├── pages/                     # Application Pages
+│   │   │   ├── LandingPage.jsx        # Home page with guest join
+│   │   │   ├── LoginPage.jsx          # User login form
+│   │   │   ├── SignupPage.jsx         # User registration form
+│   │   │   ├── MeetingEntryPage.jsx   # Create/Join meeting interface
+│   │   │   ├── PreCallPage.jsx        # Pre-call setup & preview
+│   │   │   └── VideoCallPage.jsx      # Main video call interface (1000+ lines)
+│   │   │
+│   │   ├── App.jsx                    # Root component with routing
+│   │   ├── main.jsx                   # Application entry point
+│   │   └── index.css                  # Global styles & Tailwind imports
+│   │
+│   ├── .env                           # Environment variables
+│   ├── index.html                     # HTML template
+│   ├── package.json                   # Frontend dependencies
+│   ├── tailwind.config.js             # Tailwind CSS configuration
+│   ├── vite.config.ts                 # Vite build configuration
+│   └── vercel.json                    # Vercel deployment config (SPA rewrites)
+│
+├── backend/                           # Node.js Backend Server
+│   ├── src/
+│   │   ├── controllers/
+│   │   │   ├── socketManager.js       # Socket.io event handlers
+│   │   │   └── userController.js      # Auth & user API handlers
+│   │   │
+│   │   ├── models/
+│   │   │   ├── userModel.js           # User mongoose schema
+│   │   │   └── meetingModel.js        # Meeting mongoose schema
+│   │   │
+│   │   ├── routes/
+│   │   │   └── users.routes.js        # User API routes
+│   │   │
+│   │   └── app.js                     # Express server entry point
+│   │
+│   ├── .env                           # Environment variables
+│   └── package.json                   # Backend dependencies
+│
+├── .gitignore                         # Git ignore rules
+├── LICENSE                            # MIT License
+└── README.md                          # Project documentation
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+ (recommended: 24.x)
+- MongoDB Atlas account or local MongoDB instance
+- npm package manager
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/arkaghosh2005/QuickMeet.git
+   cd quickmeet
+   ```
+
+2. **Install Backend Dependencies**
+   ```bash
+   cd backend
+   npm install
+   ```
+
+3. **Install Frontend Dependencies**
+   ```bash
+   cd ../frontend
+   npm install
+   ```
+
+4. **Configure Environment Variables** (see [Environment Variables](#-environment-variables))
+
+5. **Start the Backend Server on Terminal 1**
+   ```bash
+   cd backend
+   node '.\src\app.js'
+   ```
+
+6. **Start the Frontend Development Website on Terminal 2**
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
+7. **Open your browser** and navigate to `http://localhost:5173`
+
+---
+
+## ⚙️ Environment Variables
+
+### Backend (`backend/.env`)
+
+```env
+# Server Configuration
+PORT=8000
+NODE_ENV=development
+
+# MongoDB Connection
+MONGO_URL=mongodb+srv://<username>:<password>@cluster.mongodb.net/quickmeet
+
+# CORS - Allowed Origins
+CLIENT_URL=http://localhost:5173
+```
+
+### Frontend (`frontend/.env`)
+
+```env
+# Backend Server URL
+VITE_SERVER_URL=http://localhost:8000
+
+# STUN Servers for WebRTC (NAT Traversal)
+VITE_STUN_URL_1=stun:stun.l.google.com:19302
+VITE_STUN_URL_2=stun:stun1.l.google.com:19302
+VITE_STUN_URL_3=stun:stun2.l.google.com:19302
+VITE_STUN_URL_4=stun:stun3.l.google.com:19302
+VITE_STUN_URL_5=stun:stun4.l.google.com:19302
+```
+
+---
+
+## 📚 API Reference
+
+### Authentication Endpoints
+
+#### `POST /v1/users/signup`
+Register a new user account.
+
+**Request Body:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "securepassword"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "message": "User has been Registered. Please Login."
+}
+```
+
+---
+
+#### `POST /v1/users/login`
+Authenticate an existing user.
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "password": "securepassword"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "token": "abc123xyz...",
+  "user": {
+    "name": "John Doe",
+    "email": "john@example.com"
+  }
+}
+```
+
+---
+
+#### `GET /v1/users/history?token={token}`
+Get user's meeting history.
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "user_id": "john@example.com",
+    "meetingCode": "ABC-1234-XYZ",
+    "date": "2025-12-30T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+#### `POST /v1/users/history`
+Add a meeting to user's history.
+
+**Request Body:**
+```json
+{
+  "token": "abc123xyz...",
+  "meeting_code": "ABC-1234-XYZ"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "message": "Meeting added to history"
+}
+```
+
+---
+
+## 📱 Application Flow
+
+```
+Landing Page (Guest Join / Login / Signup)
+         │
+         ▼
+   Login / Signup
+         │
+         ▼
+  Meeting Entry Page
+  (Create or Join Meeting)
+         │
+         ▼
+    Pre-Call Page
+  (Preview & Settings)
+         │
+         ▼
+   Video Call Page
+  (Full Meeting Experience)
+```
+
+---
+
+## 📄 License
+
+### License
+This project is licensed under the **MIT License** - see the [LICENSE](https://github.com/arkaghosh2005/QuickMeet/blob/main/LICENSE) file for details.
+
+---
+
+<div align="center">
+
+Made with ❤️ using React, Node.js and WebRTC by **Arka Ghosh**
+
+</div>
