@@ -21,17 +21,19 @@
 
 ## 📋 Table of Contents
 
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [System Architecture](#-system-architecture)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-- [Environment Variables](#-environment-variables)
-- [API Reference](#-api-reference)
-- [Application Flow](#-application-flow)
-- [License](#-license)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [System Architecture](#system-architecture)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [API Reference](#api-reference)
+- [Application Flow](#application-flow)
+- [License](#license)
 
 ---
+
+<a id="features"></a>
 
 ## ✨ Features
 
@@ -65,7 +67,18 @@
 | **Screen Share Priority** | Screen shares get prominent display positioning |
 | **Overflow Indicator** | Shows "+N more" when participants exceed grid capacity |
 
-### 🔒 Security & Stability
+### � Meeting History
+| Feature | Description |
+|---------|-------------|
+| **Meeting History Page** | View all past meetings with date, time, and status |
+| **Active Room Detection** | Real-time status showing if a room is "Active" or "Room Closed" |
+| **Rejoin Meetings** | Quick rejoin button for active meetings |
+| **Delete from History** | Remove individual meetings from history |
+| **Auto-Cleanup** | Server automatically deletes meetings older than 30 days |
+| **Duplicate Prevention** | Rejoining same room updates timestamp instead of creating duplicates |
+| **Guest Restriction** | Meeting history only available for registered users |
+
+### �🔒 Security & Stability
 | Feature | Description |
 |---------|-------------|
 | **Peer-to-Peer Encryption** | Secure WebRTC connections via STUN servers |
@@ -75,6 +88,8 @@
 | **Connection Recovery** | Handles peer disconnections gracefully |
 
 ---
+
+<a id="tech-stack"></a>
 
 ## 🛠 Tech Stack
 
@@ -112,60 +127,82 @@
 
 ---
 
+<a id="system-architecture"></a>
+
 ## 🏗 System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENT (React + Vite)                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │  Landing    │  │   Login/    │  │  Meeting    │  │     Video Call      │ │
-│  │   Page      │  │   Signup    │  │   Entry     │  │       Page          │ │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────┘ │
-│         │               │               │                    │              │
-│  ┌──────┴───────────────┴───────────────┴────────────────────┴───────────┐  │
-│  │                        Context Providers                              │  │
-│  │  ┌─────────────────────────┐  ┌─────────────────────────────────────┐ │  │
-│  │  │      AuthContext        │  │         ThemeContext                │ │  │
-│  │  │  - userData state       │  │  - isDarkMode state                 │ │  │
-│  │  │  - login/signup/logout  │  │  - toggleTheme()                    │ │  │
-│  │  │  - loginAsGuest()       │  │  - localStorage persistence         │ │  │
-│  │  └─────────────────────────┘  └─────────────────────────────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                         ┌────────────┴────────────┐
-                         │      Socket.io          │
-                         │   (Real-time Events)    │
-                         └────────────┬────────────┘
-                                      │
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         SERVER (Node.js + Express)                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                         Socket Manager                                │  │
-│  │  - join-call          - signal (WebRTC)      - chat-message          │  │
-│  │  - user-joined        - update-media-state   - screen-share-toggle   │  │
-│  │  - user-left          - disconnect           - user-media-state      │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                         REST API Routes                               │  │
-│  │  POST /v1/users/signup     - Register new user                        │  │
-│  │  POST /v1/users/login      - Authenticate user                        │  │
-│  │  GET  /v1/users/history    - Get meeting history                      │  │
-│  │  POST /v1/users/history    - Add meeting to history                   │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                         ┌────────────┴────────────┐
-                         │       MongoDB           │
-                         │  - Users Collection     │
-                         │  - Meetings Collection  │
-                         └─────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                              CLIENT (React + Vite)                               │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌────────────────────┐  │
+│  │  Landing  │ │  Login/   │ │  Meeting  │ │  Meeting  │ │    Video Call      │  │
+│  │   Page    │ │  Signup   │ │   Entry   │ │  History  │ │       Page         │  │
+│  └───────────┘ └───────────┘ └───────────┘ └───────────┘ └────────────────────┘  │
+│        │             │             │             │               │               │
+│  ┌─────┴─────────────┴─────────────┴─────────────┴───────────────┴────────────┐  │
+│  │                         Context Providers                                  │  │
+│  │  ┌──────────────────────────┐  ┌────────────────────────────────────────┐  │  │
+│  │  │       AuthContext        │  │           ThemeContext                 │  │  │
+│  │  │  - userData state        │  │  - isDarkMode state                    │  │  │
+│  │  │  - login/signup/logout   │  │  - toggleTheme()                       │  │  │
+│  │  │  - loginAsGuest()        │  │  - localStorage persistence            │  │  │
+│  │  │  - token management      │  │                                        │  │  │
+│  │  └──────────────────────────┘  └────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                          │                              │
+             ┌────────────┴────────────┐    ┌────────────┴────────────┐
+             │       Socket.io         │    │      REST API (Axios)   │
+             │   (Real-time Events)    │    │    (HTTP Requests)      │
+             └────────────┬────────────┘    └────────────┬────────────┘
+                          │                              │
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                          SERVER (Node.js + Express)                              │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│  ┌────────────────────────────────────────────────────────────────────────────┐  │
+│  │                          Socket Manager                                    │  │
+│  │  - join-call           - signal (WebRTC)       - chat-message              │  │
+│  │  - user-joined         - update-media-state    - screen-share-toggle       │  │
+│  │  - user-left           - disconnect            - getActiveRooms()          │  │
+│  └────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                  │
+│  ┌────────────────────────────────────────────────────────────────────────────┐  │
+│  │                          REST API Routes                                   │  │
+│  │  POST   /v1/users/signup     - Register new user                           │  │
+│  │  POST   /v1/users/login      - Authenticate user                           │  │
+│  │  GET    /v1/users/history    - Get meeting history (with active status)    │  │
+│  │  POST   /v1/users/history    - Add/Update meeting to history (upsert)      │  │
+│  │  DELETE /v1/users/history    - Delete meeting from history                 │  │
+│  └────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                  │
+│  ┌────────────────────────────────────────────────────────────────────────────┐  │
+│  │                       Background Jobs                                      │  │
+│  │  - Auto-cleanup meetings older than 30 days (runs every 6 hours)           │  │
+│  │  - Room cleanup after 1 hour of inactivity                                 │  │
+│  └────────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                          ┌────────────┴────────────┐
+                          │        MongoDB          │
+                          │  ┌───────────────────┐  │
+                          │  │ Users Collection  │  │
+                          │  │ - name, email     │  │
+                          │  │ - password (hash) │  │
+                          │  │ - token           │  │
+                          │  └───────────────────┘  │
+                          │  ┌───────────────────┐  │
+                          │  │Meetings Collection│  │
+                          │  │ - user_id         │  │
+                          │  │ - meetingCode     │  │
+                          │  │ - date            │  │
+                          │  └───────────────────┘  │
+                          └─────────────────────────┘
 ```
 
 ---
+
+<a id="project-structure"></a>
 
 ## 📁 Project Structure
 
@@ -190,6 +227,7 @@ quickmeet/
 │   │   │   ├── LoginPage.jsx          # User login form
 │   │   │   ├── SignupPage.jsx         # User registration form
 │   │   │   ├── MeetingEntryPage.jsx   # Create/Join meeting interface
+│   │   │   ├── MeetingHistoryPage.jsx # Past meetings with rejoin/delete
 │   │   │   ├── PreCallPage.jsx        # Pre-call setup & preview
 │   │   │   └── VideoCallPage.jsx      # Main video call interface (1000+ lines)
 │   │   │
@@ -229,6 +267,8 @@ quickmeet/
 
 ---
 
+<a id="getting-started"></a>
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -257,7 +297,7 @@ quickmeet/
    npm install
    ```
 
-4. **Configure Environment Variables** (see [Environment Variables](#-environment-variables))
+4. **Configure Environment Variables** (see [Environment Variables](#environment-variables))
 
 5. **Start the Backend Server on Terminal 1**
    ```bash
@@ -274,6 +314,8 @@ quickmeet/
 7. **Open your browser** and navigate to `http://localhost:5173`
 
 ---
+
+<a id="environment-variables"></a>
 
 ## ⚙️ Environment Variables
 
@@ -306,6 +348,8 @@ VITE_STUN_URL_5=stun:stun4.l.google.com:19302
 ```
 
 ---
+
+<a id="api-reference"></a>
 
 ## 📚 API Reference
 
@@ -357,12 +401,13 @@ Authenticate an existing user.
 ---
 
 #### `GET /v1/users/history?token={token}`
-Get user's meeting history.
+Get user's meeting history with active room status.
 
 **Response:** `200 OK`
 ```json
 [
   {
+    "_id": "64abc123...",
     "user_id": "john@example.com",
     "meetingCode": "ABC-1234-XYZ",
     "date": "2025-12-30T10:00:00.000Z"
@@ -373,7 +418,7 @@ Get user's meeting history.
 ---
 
 #### `POST /v1/users/history`
-Add a meeting to user's history.
+Add a meeting to user's history (updates timestamp if meeting already exists).
 
 **Request Body:**
 ```json
@@ -392,6 +437,28 @@ Add a meeting to user's history.
 
 ---
 
+#### `DELETE /v1/users/history`
+Delete a specific meeting from user's history.
+
+**Request Body:**
+```json
+{
+  "token": "abc123xyz...",
+  "meeting_id": "64abc123..."
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Meeting deleted from history"
+}
+```
+
+---
+
+<a id="application-flow"></a>
+
 ## 📱 Application Flow
 
 ```
@@ -401,12 +468,14 @@ Landing Page (Guest Join / Login / Signup)
    Login / Signup
          │
          ▼
-  Meeting Entry Page
-  (Create or Join Meeting)
-         │
-         ▼
-    Pre-Call Page
-  (Preview & Settings)
+  Meeting Entry Page ◄────────────┐
+  (Create or Join Meeting)        │
+         │                        │
+         ├────────────────────────┤
+         │                        │
+         ▼                        │
+    Pre-Call Page         Meeting History Page
+  (Preview & Settings)    (View/Rejoin/Delete)
          │
          ▼
    Video Call Page
@@ -414,6 +483,8 @@ Landing Page (Guest Join / Login / Signup)
 ```
 
 ---
+
+<a id="license"></a>
 
 ## 📄 License
 
