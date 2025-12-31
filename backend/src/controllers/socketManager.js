@@ -11,17 +11,6 @@ let roomCleanupTimers = {}
 
 const ROOM_EXPIRY_TIME = 60 * 60 * 1000; // 1 hour in milliseconds
 
-// Export function to check if a room exists
-export const isRoomActive = (meetingCode) => {
-    // Check all room URLs for the meeting code
-    for (const roomUrl of Object.keys(connections)) {
-        if (roomUrl.includes(meetingCode)) {
-            return connections[roomUrl].length > 0 || roomCleanupTimers[roomUrl] !== undefined;
-        }
-    }
-    return false;
-};
-
 // Export function to get all active room codes
 export const getActiveRooms = () => {
     const activeRooms = new Set();
@@ -53,7 +42,7 @@ export const connectToSocket = (server) => {
     const io = new Server(server, {
         cors: {
             origin: clientUrl.split(",").map(url => url.trim()),
-            methods: ["GET", "POST", "PUT", "DELETE"],
+            methods: ["GET", "POST", "DELETE"],
             allowedHeaders: ["Content-Type"],
             credentials: true
         }

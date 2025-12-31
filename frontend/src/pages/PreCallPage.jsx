@@ -69,36 +69,48 @@ const PreCallPage = () => {
             return;
         }
 
+        // Use local variables to track availability, then update state
+        let isVideoAvailable = false;
+        let isAudioAvailable = false;
+
         // CAMERA permission
         try {
             const cam = await navigator.mediaDevices.getUserMedia({ video: true });
-            setVideoAvailable(true);
+            isVideoAvailable = true;
             cam.getTracks().forEach(track => track.stop());
         } catch (error) {
-            setVideoAvailable(false);
-            setVideo(false);
+            isVideoAvailable = false;
         }
 
         // MICROPHONE permission
         try {
             const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-            setAudioAvailable(true);
+            isAudioAvailable = true;
             mic.getTracks().forEach(track => track.stop());
         } catch (error) {
-            setAudioAvailable(false);
-            setAudio(false);
+            isAudioAvailable = false;
         }
 
+        // Update state based on local variables
+        setVideoAvailable(isVideoAvailable);
+        setAudioAvailable(isAudioAvailable);
+        if (!isVideoAvailable) setVideo(false);
+        if (!isAudioAvailable) setAudio(false);
+
         // Create an initial preview stream only if at least one device is available
-        if (videoAvailable || audioAvailable) {
+        if (isVideoAvailable || isAudioAvailable) {
             try {
                 const preview = await navigator.mediaDevices.getUserMedia({
-                    video: videoAvailable,
-                    audio: audioAvailable,
+                    video: isVideoAvailable,
+                    audio: isAudioAvailable,
                 });
                 window.localStream = preview;
                 if (localVideoref.current?.srcObject !== undefined) {
-                    try { localVideoref.current.srcObject = preview; } catch (e) { console.warn("Preview assign failed:", e); }
+                    try {
+                        localVideoref.current.srcObject = preview;
+                    } catch (e) {
+                        console.warn("Preview assign failed:", e);
+                    }
                 }
             } catch (e) {
                 console.warn("Initial preview getUserMedia failed:", e);
@@ -245,7 +257,7 @@ const PreCallPage = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Video Preview */}
                     <div className="lg:col-span-2">
-                        <div 
+                        <div
                             className="relative bg-gray-800 rounded-2xl overflow-hidden flex items-center justify-center"
                             style={{ aspectRatio }}
                         >
