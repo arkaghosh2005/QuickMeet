@@ -4,9 +4,45 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 import { Server } from "socket.io"
+
 let connections = {}
 let messages = {}
-let timeOnline = {}
+let roomCleanupTimers = {}
+
+const ROOM_EXPIRY_TIME = 60 * 60 * 1000; // 1 hour in milliseconds
+
+// Export function to check if a room exists
+export const isRoomActive = (meetingCode) => {
+    // Check all room URLs for the meeting code
+    for (const roomUrl of Object.keys(connections)) {
+        if (roomUrl.includes(meetingCode)) {
+            return connections[roomUrl].length > 0 || roomCleanupTimers[roomUrl] !== undefined;
+        }
+    }
+    return false;
+};
+
+// Export function to get all active room codes
+export const getActiveRooms = () => {
+    const activeRooms = new Set();
+    for (const roomUrl of Object.keys(connections)) {
+        // Extract meeting code from URL (last segment)
+        const parts = roomUrl.split('/');
+        const meetingCode = parts[parts.length - 1];
+        if (meetingCode) {
+            activeRooms.add(meetingCode);
+        }
+    }
+    // Also include rooms that are scheduled for cleanup (still joinable)
+    for (const roomUrl of Object.keys(roomCleanupTimers)) {
+        const parts = roomUrl.split('/');
+        const meetingCode = parts[parts.length - 1];
+        if (meetingCode) {
+            activeRooms.add(meetingCode);
+        }
+    }
+    return Array.from(activeRooms);
+};
 
 export const connectToSocket = (server) => {
     const clientUrl = process.env.CLIENT_URL;
@@ -14,31 +50,62 @@ export const connectToSocket = (server) => {
         throw new Error("CLIENT_URL environment variable is required!");
     }
 
-    // Create a new Socket.io server
     const io = new Server(server, {
         cors: {
             origin: clientUrl.split(",").map(url => url.trim()),
-            methods: ["GET", "POST"],
+            methods: ["GET", "POST", "PUT", "DELETE"],
             allowedHeaders: ["Content-Type"],
             credentials: true
         }
     });
 
+    const cleanupRoom = (roomUrl) => {
+        if (connections[roomUrl]) {
+            delete connections[roomUrl];
+        }
+        if (messages[roomUrl]) {
+            delete messages[roomUrl];
+        }
+        if (roomCleanupTimers[roomUrl]) {
+            clearTimeout(roomCleanupTimers[roomUrl]);
+            delete roomCleanupTimers[roomUrl];
+        }
+        console.log(`Room cleaned up: ${roomUrl}`);
+    };
+
+    const scheduleRoomCleanup = (roomUrl) => {
+        if (roomCleanupTimers[roomUrl]) {
+            clearTimeout(roomCleanupTimers[roomUrl]);
+        }
+
+        roomCleanupTimers[roomUrl] = setTimeout(() => {
+            if (!connections[roomUrl] || connections[roomUrl].length === 0) {
+                cleanupRoom(roomUrl);
+            }
+        }, ROOM_EXPIRY_TIME);
+        
+        console.log(`Room cleanup scheduled in 1 hour: ${roomUrl}`);
+    };
 
     io.on("connection", (socket) => {
-        timeOnline[socket.id] = new Date();
 
         socket.on("join-call", ({ roomUrl, userName, userRole, video, audio }) => {
-            if (!connections[roomUrl]) connections[roomUrl] = [];
+            if (!connections[roomUrl]) {
+                connections[roomUrl] = [];
+            }
+
+            if (roomCleanupTimers[roomUrl]) {
+                clearTimeout(roomCleanupTimers[roomUrl]);
+                delete roomCleanupTimers[roomUrl];
+                console.log(`Room cleanup cancelled (user joined): ${roomUrl}`);
+            }
 
             connections[roomUrl].push({ socketId: socket.id, userName, userRole, video, audio });
 
-            // Notify all participants (including new user) about the updated list
             connections[roomUrl].forEach(user =>
                 io.to(user.socketId).emit("user-joined", socket.id, connections[roomUrl])
             );
 
-            // Send existing chat history to new user
             messages[roomUrl]?.forEach(msg =>
                 io.to(socket.id).emit("chat-message", msg.data, msg.sender, msg["socket-id-sender"])
             );
@@ -46,13 +113,11 @@ export const connectToSocket = (server) => {
 
         socket.on("update-media-state", ({ video, audio }) => {
             for (const [roomKey, roomUsers] of Object.entries(connections)) {
-                const user = roomUsers.find(user=> user.socketId === socket.id);
+                const user = roomUsers.find(user => user.socketId === socket.id);
                 if (!user) continue;
 
-                // Update user's media state
                 Object.assign(user, { video, audio });
 
-                // Notify other users in the room
                 roomUsers
                     .filter(user => user.socketId !== socket.id)
                     .forEach(user => io.to(user.socketId).emit("user-media-state-changed", socket.id, { video, audio }));
@@ -99,23 +164,16 @@ export const connectToSocket = (server) => {
             );
 
             if (room) {
-                // Notify all users in the room
                 connections[room].forEach(user =>
                     io.to(user.socketId).emit("user-left", socket.id)
                 );
 
-                // Remove disconnected user
                 connections[room] = connections[room].filter(user => user.socketId !== socket.id);
 
-                // Cleanup empty room
                 if (connections[room].length === 0) {
-                    delete connections[room];
-                    if (messages[room]) {
-                        delete messages[room];
-                    }
+                    scheduleRoomCleanup(room);
                 }
             }
-            delete timeOnline[socket.id];
         });
     })
     return io;

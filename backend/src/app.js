@@ -22,7 +22,7 @@ if (!clientUrl) {
 app.set("port", (process.env.PORT));
 app.use(cors({
     origin: clientUrl.split(",").map(url => url.trim()),
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 app.use(express.json({ limit: "40kb" }));
