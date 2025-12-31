@@ -37,7 +37,7 @@ const MeetingHistoryPage = () => {
                 const token = localStorage.getItem('token');
                 
                 if (!token && userData?.id?.startsWith('guest-')) {
-                    setError('Meeting history is not available for guest users. Please sign up to track your meetings.');
+                    setError('Meeting History is not available for Guest Users. Please Signup and then Login to track all of your meetings.');
                     setLoading(false);
                     return;
                 }
