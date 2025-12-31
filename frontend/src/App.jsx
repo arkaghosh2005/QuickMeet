@@ -5,6 +5,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import MeetingEntryPage from "./pages/MeetingEntryPage";
+import MeetingHistoryPage from "./pages/MeetingHistoryPage";
 import PreCallPage from "./pages/PreCallPage";
 import VideoCallPage from "./pages/VideoCallPage";
 
@@ -50,6 +51,14 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <MeetingEntryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/meeting-history"
+          element={
+            <ProtectedRoute>
+              <MeetingHistoryPage />
             </ProtectedRoute>
           }
         />

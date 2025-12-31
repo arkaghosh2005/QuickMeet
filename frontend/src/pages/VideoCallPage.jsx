@@ -1,8 +1,9 @@
+import { Video, VideoOff, Mic, MicOff, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus } from "lucide-react";
+import Button from "../components/Button";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import io from "socket.io-client";
-import { Video, VideoOff, Mic, MicOff, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus } from "lucide-react";
-import Button from "../components/Button";
+import axios from "axios";
 import ChatPanel from "../components/ChatPanel";
 import { useAuth } from "../context/AuthContext";
 
@@ -447,6 +448,14 @@ const VideoCallPage = () => {
                 userRole: initialState.isHost ? 'host' : 'participant',
                 video, audio,
             });
+
+            const token = localStorage.getItem('token');
+            if (token && meetingCode) {
+                axios.post(`${server_url}/v1/users/history`, {
+                    token: token,
+                    meeting_code: meetingCode
+                }).catch(err => console.log('Failed to save meeting to history:', err));
+            }
 
             window.mySocket = socket;
 
