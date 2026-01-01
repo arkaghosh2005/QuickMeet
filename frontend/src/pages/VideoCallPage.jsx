@@ -1,4 +1,4 @@
-import { Video, VideoOff, Mic, MicOff, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus, Settings } from "lucide-react";
+import { Video, VideoOff, Mic, Mic2, MicOff, Camera, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus, Settings } from "lucide-react";
 import Button from "../components/Button";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation } from "react-router-dom";
@@ -56,6 +56,12 @@ const VideoCallPage = () => {
     const [autoGainControl, setAutoGainControl] = useState(true);
     const [noiseSuppression, setNoiseSuppression] = useState(false);
 
+    // Device Selection
+    const [audioDevices, setAudioDevices] = useState([]);
+    const [videoDevices, setVideoDevices] = useState([]);
+    const [selectedAudioDevice, setSelectedAudioDevice] = useState('');
+    const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
+
     // UI States and Chat
     const [showCopiedToast, setShowCopiedToast] = useState(false);
     let [messages, setMessages] = useState([]);
@@ -86,26 +92,19 @@ const VideoCallPage = () => {
 
     // Update current user's audio/video/screenShare state in participants when toggled
     useEffect(() => {
+        // Update participants state
         setParticipants(prev =>
             prev.map(participant => {
                 if (!participant.isMe) return participant;
-
-                return {
-                    ...participant,
-                    audio,
-                    video,
-                    isScreenSharing: screenShare
-                };
+                return { ...participant, audio, video, isScreenSharing: screenShare };
             })
         );
-    }, [audio, video, screenShare]);
 
-    // Trigger screen share when screenShare state changes
-    useEffect(() => {
+        // Trigger screen share if enabled
         if (screenShare) {
             getDisplayMedia();
         }
-    }, [screenShare]);
+    }, [audio, video, screenShare]);
 
     // Sync remote participants' video and screenShare status with live track data
     useEffect(() => {
@@ -342,6 +341,44 @@ const VideoCallPage = () => {
         connectToSocketServer();
     };
 
+    // Enumerate available media devices
+    const enumerateDevices = async () => {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioInputs = devices.filter(d => d.kind === 'audioinput');
+            const videoInputs = devices.filter(d => d.kind === 'videoinput');
+
+            setAudioDevices(audioInputs);
+            setVideoDevices(videoInputs);
+
+            // Set default selected devices if not already set
+            if (!selectedAudioDevice && audioInputs.length > 0) {
+                setSelectedAudioDevice(audioInputs[0].deviceId);
+            }
+            if (!selectedVideoDevice && videoInputs.length > 0) {
+                setSelectedVideoDevice(videoInputs[0].deviceId);
+            }
+        } catch (e) {
+            console.warn('Failed to enumerate devices:', e);
+        }
+    };
+
+    // Enumerate devices when More panel opens
+    useEffect(() => {
+        if (isMoreOpen) {
+            enumerateDevices();
+        }
+    }, [isMoreOpen]);
+
+    // Handle device change
+    const handleAudioDeviceChange = (deviceId) => {
+        setSelectedAudioDevice(deviceId);
+    };
+
+    const handleVideoDeviceChange = (deviceId) => {
+        setSelectedVideoDevice(deviceId);
+    };
+
     let getUserMedia = () => {
         const wantVideo = !!(video && videoAvailable);
         const wantAudio = !!(audio && audioAvailable);
@@ -354,13 +391,20 @@ const VideoCallPage = () => {
 
         if (!navigator.mediaDevices?.getUserMedia) return;
 
+        const audioConstraints = wantAudio ? {
+            deviceId: selectedAudioDevice ? { exact: selectedAudioDevice } : undefined,
+            echoCancellation,
+            autoGainControl,
+            noiseSuppression,
+        } : false;
+
+        const videoConstraints = wantVideo ? {
+            deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined,
+        } : false;
+
         navigator.mediaDevices.getUserMedia({
-            video: wantVideo,
-            audio: wantAudio ? {
-                echoCancellation,
-                autoGainControl,
-                noiseSuppression,
-            } : false,
+            video: videoConstraints,
+            audio: audioConstraints,
         }).then(getUserMediaSuccess)
             .catch(() => {
                 if (wantVideo) { setVideoAvailable(false); setVideo(false); }
@@ -401,7 +445,7 @@ const VideoCallPage = () => {
     // Re-get user media when video/audio toggles
     useEffect(() => {
         if (video !== undefined && audio !== undefined) getUserMedia();
-    }, [video, audio, echoCancellation, autoGainControl, noiseSuppression]);
+    }, [video, audio, echoCancellation, autoGainControl, noiseSuppression, selectedAudioDevice, selectedVideoDevice]);
 
     let gotMessageFromServer = (fromId, message) => {
         if (fromId === socketRef.current?.id) return;
@@ -801,7 +845,7 @@ const VideoCallPage = () => {
                             onClick={copyMeetingCode}
                             variant="primary"
                             size="sm"
-                            className="!text-gray-300 !hover:text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
+                            className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                         >
                             <Copy className="w-4 h-4" />
                         </Button>
@@ -816,7 +860,7 @@ const VideoCallPage = () => {
                         onClick={toggleParticipants}
                         variant="primary"
                         size="sm"
-                        className="!text-gray-300 !hover:text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
+                        className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                     >
                         <Users className="w-4 h-4" />
                     </Button>
@@ -1103,67 +1147,138 @@ const VideoCallPage = () => {
 
             {/* More Settings Panel */}
             {isMoreOpen && (
-                <div className="fixed left-1/2 transform -translate-x-1/2 bottom-24 md:bottom-28 w-72 bg-gray-800 rounded-lg shadow-2xl z-50 border border-gray-700">
-                    <div className="p-4 border-b border-gray-700">
-                        <h3 className="font-semibold text-white flex items-center gap-2">
+                <div className="fixed left-1/2 transform -translate-x-1/2 bottom-24 md:bottom-28 w-[calc(100%-2rem)] sm:w-80 max-w-sm bg-gray-800 rounded-lg shadow-2xl z-50 border border-gray-700 max-h-[70vh] overflow-y-auto">
+                    <div className="p-3 sm:p-4 border-b border-gray-700">
+                        <h3 className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
                             <Settings className="w-4 h-4" />
                             Settings
                         </h3>
                     </div>
 
-                    <div className="p-4 space-y-4">
-                        {/* Echo Cancellation */}
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-white">Echo Cancellation</p>
-                                <p className="text-xs text-gray-400">Remove echo from audio</p>
+                    <div className="p-3 sm:p-4 space-y-4 sm:space-y-5">
+                        {/* Device Selection Section */}
+                        <div className="space-y-2 sm:space-y-3">
+                            <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">Device Selection</p>
+
+                            {/* Camera Selection */}
+                            <div className="space-y-1 sm:space-y-1.5">
+                                <label className="text-xs sm:text-sm font-medium text-white flex items-center gap-2">
+                                    <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 flex-shrink-0" />
+                                    <span className="truncate">Camera</span>
+                                </label>
+                                <select
+                                    value={selectedVideoDevice}
+                                    onChange={(e) => handleVideoDeviceChange(e.target.value)}
+                                    className="w-full bg-gray-700 text-white text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20viewBox%3d%220%200%2024%2024%22%20fill%3d%22none%22%20stroke%3d%22white%22%20stroke-width%3d%222%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%3e%3cpolyline%20points%3d%226%209%2012%2015%2018%209%22%3e%3c%2fpolyline%3e%3c%2fsvg%3e')] bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat pr-8"
+                                    title={videoDevices.find(d => d.deviceId === selectedVideoDevice)?.label || 'Select camera'}
+                                >
+                                    {videoDevices.length === 0 ? (
+                                        <option value="">No cameras found</option>
+                                    ) : (
+                                        videoDevices.map((device, index) => {
+                                            const label = device.label || `Camera ${index + 1}`;
+                                            // Truncate long labels for better display
+                                            const displayLabel = label.length > 35 ? label.substring(0, 32) + '...' : label;
+                                            return (
+                                                <option key={device.deviceId} value={device.deviceId} title={label}>
+                                                    {displayLabel}
+                                                </option>
+                                            );
+                                        })
+                                    )}
+                                </select>
                             </div>
-                            <button
-                                onClick={() => setEchoCancellation(!echoCancellation)}
-                                className={`relative w-11 h-6 rounded-full transition-colors ${echoCancellation ? 'bg-blue-600' : 'bg-gray-600'
-                                    }`}
-                            >
-                                <span
-                                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${echoCancellation ? 'translate-x-5' : 'translate-x-0'
-                                        }`}
-                                />
-                            </button>
+
+                            {/* Microphone Selection */}
+                            <div className="space-y-1 sm:space-y-1.5">
+                                <label className="text-xs sm:text-sm font-medium text-white flex items-center gap-2">
+                                    <Mic2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400 flex-shrink-0" />
+                                    <span className="truncate">Microphone</span>
+                                </label>
+                                <select
+                                    value={selectedAudioDevice}
+                                    onChange={(e) => handleAudioDeviceChange(e.target.value)}
+                                    className="w-full bg-gray-700 text-white text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20viewBox%3d%220%200%2024%2024%22%20fill%3d%22none%22%20stroke%3d%22white%22%20stroke-width%3d%222%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%3e%3cpolyline%20points%3d%226%209%2012%2015%2018%209%22%3e%3c%2fpolyline%3e%3c%2fsvg%3e')] bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat pr-8"
+                                    title={audioDevices.find(d => d.deviceId === selectedAudioDevice)?.label || 'Select microphone'}
+                                >
+                                    {audioDevices.length === 0 ? (
+                                        <option value="">No microphones found</option>
+                                    ) : (
+                                        audioDevices.map((device, index) => {
+                                            const label = device.label || `Microphone ${index + 1}`;
+                                            // Truncate long labels for better display
+                                            const displayLabel = label.length > 35 ? label.substring(0, 32) + '...' : label;
+                                            return (
+                                                <option key={device.deviceId} value={device.deviceId} title={label}>
+                                                    {displayLabel}
+                                                </option>
+                                            );
+                                        })
+                                    )}
+                                </select>
+                            </div>
                         </div>
 
-                        {/* Auto Gain Control */}
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-white">Auto Gain Control</p>
-                                <p className="text-xs text-gray-400">Auto-adjust mic volume</p>
-                            </div>
-                            <button
-                                onClick={() => setAutoGainControl(!autoGainControl)}
-                                className={`relative w-11 h-6 rounded-full transition-colors ${autoGainControl ? 'bg-blue-600' : 'bg-gray-600'
-                                    }`}
-                            >
-                                <span
-                                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autoGainControl ? 'translate-x-5' : 'translate-x-0'
-                                        }`}
-                                />
-                            </button>
-                        </div>
+                        {/* Divider */}
+                        <div className="border-t border-gray-700"></div>
 
-                        {/* Noise Suppression */}
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-white">Noise Suppression</p>
-                                <p className="text-xs text-gray-400">Filter background noise</p>
-                            </div>
-                            <button
-                                onClick={() => setNoiseSuppression(!noiseSuppression)}
-                                className={`relative w-11 h-6 rounded-full transition-colors ${noiseSuppression ? 'bg-blue-600' : 'bg-gray-600'
-                                    }`}
-                            >
-                                <span
-                                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${noiseSuppression ? 'translate-x-5' : 'translate-x-0'
+                        {/* Audio Processing Section */}
+                        <div className="space-y-2 sm:space-y-3">
+                            <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">Audio Processing</p>
+
+                            {/* Echo Cancellation */}
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs sm:text-sm font-medium text-white truncate">Echo Cancellation</p>
+                                    <p className="text-[10px] sm:text-xs text-gray-400 truncate">Remove echo from audio</p>
+                                </div>
+                                <button
+                                    onClick={() => setEchoCancellation(!echoCancellation)}
+                                    className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${echoCancellation ? 'bg-blue-600' : 'bg-gray-600'
                                         }`}
-                                />
-                            </button>
+                                >
+                                    <span
+                                        className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${echoCancellation ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                    />
+                                </button>
+                            </div>
+
+                            {/* Auto Gain Control */}
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs sm:text-sm font-medium text-white truncate">Auto Gain Control</p>
+                                    <p className="text-[10px] sm:text-xs text-gray-400 truncate">Auto-adjust mic volume</p>
+                                </div>
+                                <button
+                                    onClick={() => setAutoGainControl(!autoGainControl)}
+                                    className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${autoGainControl ? 'bg-blue-600' : 'bg-gray-600'
+                                        }`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${autoGainControl ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                    />
+                                </button>
+                            </div>
+
+                            {/* Noise Suppression */}
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs sm:text-sm font-medium text-white truncate">Noise Suppression</p>
+                                    <p className="text-[10px] sm:text-xs text-gray-400 truncate">Filter background noise</p>
+                                </div>
+                                <button
+                                    onClick={() => setNoiseSuppression(!noiseSuppression)}
+                                    className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${noiseSuppression ? 'bg-blue-600' : 'bg-gray-600'
+                                        }`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${noiseSuppression ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                    />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
