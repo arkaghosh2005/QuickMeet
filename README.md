@@ -47,6 +47,17 @@
 | **Pre-Call Setup** | Preview video, configure display name and AV settings before joining |
 | **Auto Aspect Ratio** | Video preview automatically adjusts to match webcam's native aspect ratio |
 
+### ⚙️ Advanced Settings
+| Feature | Description |
+|---------|-------------|
+| **Settings Panel** | Floating settings panel accessible via gear icon in the control bar |
+| **Camera Selection** | Switch between available cameras during a call |
+| **Microphone Selection** | Switch between available microphones during a call |
+| **Echo Cancellation** | Toggle browser-level echo cancellation for cleaner audio |
+| **Auto Gain Control** | Automatically adjusts microphone input volume |
+| **Noise Suppression** | Filter out background noise from audio input |
+| **Responsive Settings UI** | Settings panel adapts seamlessly to mobile and desktop screens |
+
 ### 👤 User Experience
 | Feature | Description |
 |---------|-------------|
@@ -67,7 +78,7 @@
 | **Screen Share Priority** | Screen shares get prominent display positioning |
 | **Overflow Indicator** | Shows "+N more" when participants exceed grid capacity |
 
-### � Meeting History
+### 📜 Meeting History
 | Feature | Description |
 |---------|-------------|
 | **Meeting History Page** | View all past meetings with date, time, and status |
@@ -78,7 +89,7 @@
 | **Duplicate Prevention** | Rejoining same room updates timestamp instead of creating duplicates |
 | **Guest Restriction** | Meeting history only available for registered users |
 
-### �🔒 Security & Stability
+### 🔒 Security & Stability
 | Feature | Description |
 |---------|-------------|
 | **Peer-to-Peer Encryption** | Secure WebRTC connections via STUN servers |
@@ -132,72 +143,138 @@
 ## 🏗 System Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENT (React + Vite)                               │
-├──────────────────────────────────────────────────────────────────────────────────┤
-│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌────────────────────┐  │
-│  │  Landing  │ │  Login/   │ │  Meeting  │ │  Meeting  │ │    Video Call      │  │
-│  │   Page    │ │  Signup   │ │   Entry   │ │  History  │ │       Page         │  │
-│  └───────────┘ └───────────┘ └───────────┘ └───────────┘ └────────────────────┘  │
-│        │             │             │             │               │               │
-│  ┌─────┴─────────────┴─────────────┴─────────────┴───────────────┴────────────┐  │
-│  │                         Context Providers                                  │  │
-│  │  ┌──────────────────────────┐  ┌────────────────────────────────────────┐  │  │
-│  │  │       AuthContext        │  │           ThemeContext                 │  │  │
-│  │  │  - userData state        │  │  - isDarkMode state                    │  │  │
-│  │  │  - login/signup/logout   │  │  - toggleTheme()                       │  │  │
-│  │  │  - loginAsGuest()        │  │  - localStorage persistence            │  │  │
-│  │  │  - token management      │  │                                        │  │  │
-│  │  └──────────────────────────┘  └────────────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────────────────┘
-                          │                              │
-             ┌────────────┴────────────┐    ┌────────────┴────────────┐
-             │       Socket.io         │    │      REST API (Axios)   │
-             │   (Real-time Events)    │    │    (HTTP Requests)      │
-             └────────────┬────────────┘    └────────────┬────────────┘
-                          │                              │
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                          SERVER (Node.js + Express)                              │
-├──────────────────────────────────────────────────────────────────────────────────┤
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          Socket Manager                                    │  │
-│  │  - join-call           - signal (WebRTC)       - chat-message              │  │
-│  │  - user-joined         - update-media-state    - screen-share-toggle       │  │
-│  │  - user-left           - disconnect            - getActiveRooms()          │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          REST API Routes                                   │  │
-│  │  POST   /v1/users/signup     - Register new user                           │  │
-│  │  POST   /v1/users/login      - Authenticate user                           │  │
-│  │  GET    /v1/users/history    - Get meeting history (with active status)    │  │
-│  │  POST   /v1/users/history    - Add/Update meeting to history (upsert)      │  │
-│  │  DELETE /v1/users/history    - Delete meeting from history                 │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │                       Background Jobs                                      │  │
-│  │  - Auto-cleanup meetings older than 30 days (runs every 6 hours)           │  │
-│  │  - Room cleanup after 1 hour of inactivity                                 │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────────────────┘
-                                       │
-                          ┌────────────┴────────────┐
-                          │        MongoDB          │
-                          │  ┌───────────────────┐  │
-                          │  │ Users Collection  │  │
-                          │  │ - name, email     │  │
-                          │  │ - password (hash) │  │
-                          │  │ - token           │  │
-                          │  └───────────────────┘  │
-                          │  ┌───────────────────┐  │
-                          │  │Meetings Collection│  │
-                          │  │ - user_id         │  │
-                          │  │ - meetingCode     │  │
-                          │  │ - date            │  │
-                          │  └───────────────────┘  │
-                          └─────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    CLIENT (React 19 + Vite 7)                                   │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                 │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌───────────┐  │
+│  │   Landing   │ │   Login     │ │   Signup    │ │   Meeting   │ │   Meeting   │ │  PreCall  │  │
+│  │    Page     │ │    Page     │ │    Page     │ │   Entry     │ │   History   │ │   Page    │  │
+│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └─────┬─────┘  │
+│         │               │               │               │               │              │        │
+│         └───────────────┴───────────────┴───────┬───────┴───────────────┴──────────────┘        │
+│                                                 │                                               │
+│                                                 ▼                                               │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                              VIDEO CALL PAGE (Main Interface)                            │   │
+│  │  ┌────────────────────┐ ┌────────────────────┐ ┌────────────────────┐ ┌───────────────┐  │   │
+│  │  │   Video Grid       │ │   Control Bar      │ │   Settings Panel   │ │  Chat Panel   │  │   │
+│  │  │  - Local video     │ │  - Mic toggle      │ │  - Camera select   │ │  - Messages   │  │   │
+│  │  │  - Remote videos   │ │  - Video toggle    │ │  - Mic select      │ │  - Real-time  │  │   │
+│  │  │  - Screen shares   │ │  - Speaker toggle  │ │  - Echo cancel     │ │  - Floating   │  │   │
+│  │  │  - Adaptive grid   │ │  - Screen share    │ │  - Auto gain       │ └───────────────┘  │   │
+│  │  │  - Overflow (+N)   │ │  - Chat button     │ │  - Noise suppress  │ ┌───────────────┐  │   │
+│  │  └────────────────────┘ │  - Settings button │ └────────────────────┘ │  Participants │  │   │
+│  │                         │  - End call        │                        │    Panel      │  │   │
+│  │                         └────────────────────┘                        └───────────────┘  │   │
+│  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                                 │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                              CONTEXT PROVIDERS (Global State)                            │   │
+│  │  ┌─────────────────────────────────────┐  ┌────────────────────────────────────────────┐ │   │
+│  │  │           AuthContext               │  │              ThemeContext                  │ │   │
+│  │  │  • userData (name, email, token)    │  │  • isDarkMode state                        │ │   │
+│  │  │  • login() / signup() / logout()    │  │  • toggleTheme()                           │ │   │
+│  │  │  • loginAsGuest()                   │  │  • localStorage persistence                │ │   │
+│  │  │  • Token validation                 │  │  • System preference detection             │ │   │
+│  │  └─────────────────────────────────────┘  └────────────────────────────────────────────┘ │   │
+│  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                                 │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                              REUSABLE COMPONENTS                                         │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌───────────────┐ ┌───────────────────────┐  │   │
+│  │  │  Button  │ │  Input   │ │  ChatPanel   │ │ LoadingSpinner│ │   DarkModeToggle      │  │   │
+│  │  └──────────┘ └──────────┘ └──────────────┘ └───────────────┘ └───────────────────────┘  │   │
+│  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                                 │
+└────────────────────────────────────┬────────────────────────────────┬───────────────────────────┘
+                                     │                                │
+                    ┌────────────────┴────────────────┐  ┌────────────┴────────────────┐
+                    │        Socket.io Client         │  │      Axios HTTP Client      │
+                    │      (Real-time Events)         │  │      (REST API Calls)       │
+                    └────────────────┬────────────────┘  └────────────┬────────────────┘
+                                     │                                │
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+                                     │           NETWORK              │
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+                                     │                                │
+                    ┌────────────────┴────────────────┐  ┌────────────┴────────────────┐
+                    │        Socket.io Server         │  │       Express Router        │
+                    │      (WebSocket Handler)        │  │      (HTTP Endpoints)       │
+                    └────────────────┬────────────────┘  └────────────┬────────────────┘
+                                     │                                │
+┌────────────────────────────────────┴────────────────────────────────┴───────────────────────────┐
+│                              SERVER (Node.js 24 + Express 5)                                    │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                 │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                              SOCKET MANAGER (socketManager.js)                           │   │
+│  │                                                                                          │   │
+│  │   EVENTS RECEIVED                          EVENTS EMITTED                                │   │
+│  │   ┌─────────────────────────┐              ┌─────────────────────────────────────────┐   │   │
+│  │   │ • join-call             │              │ • user-joined (broadcast to room)       │   │   │
+│  │   │ • signal (WebRTC SDP)   │              │ • user-left (broadcast to room)         │   │   │
+│  │   │ • chat-message          │              │ • signal (forward to peer)              │   │   │
+│  │   │ • update-media-state    │              │ • chat-message (broadcast)              │   │   │
+│  │   │ • screen-share-toggle   │              │ • user-media-state-changed              │   │   │
+│  │   │ • disconnect            │              │ • user-started-screen-share             │   │   │
+│  │   └─────────────────────────┘              │ • user-stopped-screen-share             │   │   │
+│  │                                            └─────────────────────────────────────────┘   │   │
+│  │   ROOM MANAGEMENT                                                                        │   │
+│  │   ┌─────────────────────────────────────────────────────────────────────────────────┐    │   │
+│  │   │ • socketToRoom{} - Maps socket ID to room URL                                   │    │   │
+│  │   │ • rooms{} - Tracks clients in each room (socketId, userName, userRole, A/V)     │    │   │
+│  │   │ • getActiveRooms() - Returns list of rooms with active participants             │    │   │
+│  │   │ • Room cleanup after 1 hour of inactivity                                       │    │   │
+│  │   └─────────────────────────────────────────────────────────────────────────────────┘    │   │
+│  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                                 │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                              USER CONTROLLER (userController.js)                         │   │
+│  │                                                                                          │   │
+│  │   ┌─────────────────────────────────────────────────────────────────────────────────┐    │   │
+│  │   │  POST /v1/users/signup     │  Register user (bcrypt hash, crypto token)         │    │   │
+│  │   ├─────────────────────────────────────────────────────────────────────────────────┤    │   │
+│  │   │  POST /v1/users/login      │  Authenticate user, return token + user data       │    │   │
+│  │   ├─────────────────────────────────────────────────────────────────────────────────┤    │   │
+│  │   │  GET  /v1/users/history    │  Get meetings with active room status              │    │   │
+│  │   ├─────────────────────────────────────────────────────────────────────────────────┤    │   │
+│  │   │  POST /v1/users/history    │  Add/Update meeting (upsert - no duplicates)       │    │   │
+│  │   ├─────────────────────────────────────────────────────────────────────────────────┤    │   │
+│  │   │  DELETE /v1/users/history  │  Remove meeting from user's history                │    │   │
+│  │   └─────────────────────────────────────────────────────────────────────────────────┘    │   │
+│  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                                 │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                              BACKGROUND JOBS (app.js)                                    │   │
+│  │  ┌───────────────────────────────────┐  ┌─────────────────────────────────────────────┐  │   │
+│  │  │  Meeting Cleanup (Every 6 hours)  │  │  Room Cleanup (On disconnect)               │  │   │
+│  │  │  Delete meetings > 30 days old    │  │  Remove empty rooms after timeout           │  │   │
+│  │  └───────────────────────────────────┘  └─────────────────────────────────────────────┘  │   │
+│  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                                 │
+└────────────────────────────────────────────────────┬────────────────────────────────────────────┘
+                                                     │
+                                                     │ Mongoose ODM
+                                                     ▼
+                              ┌─────────────────────────────────────────────┐
+                              │              MongoDB Atlas                  │
+                              │  ┌─────────────────────────────────────┐    │
+                              │  │         Users Collection            │    │
+                              │  │  • _id: ObjectId                    │    │
+                              │  │  • name: String                     │    │
+                              │  │  • email: String (unique)           │    │
+                              │  │  • password: String (bcrypt)        │    │
+                              │  │  • token: String (crypto)           │    │
+                              │  └─────────────────────────────────────┘    │
+                              │  ┌─────────────────────────────────────┐    │
+                              │  │        Meetings Collection          │    │
+                              │  │  • _id: ObjectId                    │    │
+                              │  │  • user_id: String (email)          │    │
+                              │  │  • meetingCode: String              │    │
+                              │  │  • date: Date (auto-updated)        │    │
+                              │  └─────────────────────────────────────┘    │
+                              └─────────────────────────────────────────────┘
 ```
 
 ---
