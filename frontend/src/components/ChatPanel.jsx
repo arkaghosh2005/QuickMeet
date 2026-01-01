@@ -57,7 +57,7 @@ const ChatPanel = ({
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
                 <h3 className="font-semibold text-white">Meeting Chat</h3>
-                <Button onClick={onClose} variant="ghost" className="p-1 text-gray-400 hover:text-white">
+                <Button onClick={onClose} variant="danger" className="p-1 text-gray-400 hover:text-white">
                     <X className="w-4 h-4" />
                 </Button>
             </div>

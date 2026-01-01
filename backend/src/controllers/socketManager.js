@@ -59,7 +59,6 @@ export const connectToSocket = (server) => {
             clearTimeout(roomCleanupTimers[roomUrl]);
             delete roomCleanupTimers[roomUrl];
         }
-        console.log(`Room cleaned up: ${roomUrl}`);
     };
 
     const scheduleRoomCleanup = (roomUrl) => {
@@ -72,12 +71,9 @@ export const connectToSocket = (server) => {
                 cleanupRoom(roomUrl);
             }
         }, ROOM_EXPIRY_TIME);
-        
-        console.log(`Room cleanup scheduled in 1 hour: ${roomUrl}`);
     };
 
     io.on("connection", (socket) => {
-
         socket.on("join-call", ({ roomUrl, userName, userRole, video, audio }) => {
             if (!connections[roomUrl]) {
                 connections[roomUrl] = [];
@@ -86,7 +82,6 @@ export const connectToSocket = (server) => {
             if (roomCleanupTimers[roomUrl]) {
                 clearTimeout(roomCleanupTimers[roomUrl]);
                 delete roomCleanupTimers[roomUrl];
-                console.log(`Room cleanup cancelled (user joined): ${roomUrl}`);
             }
 
             connections[roomUrl].push({ socketId: socket.id, userName, userRole, video, audio });

@@ -1,4 +1,4 @@
-import { Video, VideoOff, Mic, MicOff, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus, Settings } from "lucide-react";
 import Button from "../components/Button";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation } from "react-router-dom";
@@ -49,6 +49,12 @@ const VideoCallPage = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
     let [screenShare, setScreenShare] = useState(false);
+
+    // Audio Settings
+    const [isMoreOpen, setIsMoreOpen] = useState(false);
+    const [echoCancellation, setEchoCancellation] = useState(true);
+    const [autoGainControl, setAutoGainControl] = useState(true);
+    const [noiseSuppression, setNoiseSuppression] = useState(false);
 
     // UI States and Chat
     const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -301,9 +307,9 @@ const VideoCallPage = () => {
             checkDevice({ video: true }),
             checkDevice({
                 audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
+                    echoCancellation,
+                    autoGainControl,
+                    noiseSuppression,
                 }
             })
         ]);
@@ -321,9 +327,9 @@ const VideoCallPage = () => {
                 const preview = await navigator.mediaDevices.getUserMedia({
                     video: videoOk && video,
                     audio: audioOk && audio ? {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true,
+                        echoCancellation,
+                        autoGainControl,
+                        noiseSuppression,
                     } : false,
                 });
                 window.localStream = preview;
@@ -351,9 +357,9 @@ const VideoCallPage = () => {
         navigator.mediaDevices.getUserMedia({
             video: wantVideo,
             audio: wantAudio ? {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
+                echoCancellation,
+                autoGainControl,
+                noiseSuppression,
             } : false,
         }).then(getUserMediaSuccess)
             .catch(() => {
@@ -395,7 +401,7 @@ const VideoCallPage = () => {
     // Re-get user media when video/audio toggles
     useEffect(() => {
         if (video !== undefined && audio !== undefined) getUserMedia();
-    }, [video, audio]);
+    }, [video, audio, echoCancellation, autoGainControl, noiseSuppression]);
 
     let gotMessageFromServer = (fromId, message) => {
         if (fromId === socketRef.current?.id) return;
@@ -673,6 +679,10 @@ const VideoCallPage = () => {
         setIsParticipantsOpen(!isParticipantsOpen);
     };
 
+    const toggleMore = () => {
+        setIsMoreOpen(!isMoreOpen);
+    };
+
     const handleEndCall = () => {
         // Stop all media tracks
         window.localStream?.getTracks().forEach(t => t.stop());
@@ -789,7 +799,7 @@ const VideoCallPage = () => {
                         </span>
                         <Button
                             onClick={copyMeetingCode}
-                            variant="ghost"
+                            variant="primary"
                             size="sm"
                             className="!text-gray-300 !hover:text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                         >
@@ -804,7 +814,7 @@ const VideoCallPage = () => {
                     </span>
                     <Button
                         onClick={toggleParticipants}
-                        variant="ghost"
+                        variant="primary"
                         size="sm"
                         className="!text-gray-300 !hover:text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                     >
@@ -1016,6 +1026,13 @@ const VideoCallPage = () => {
                         </Button>
 
                         <Button
+                            onClick={toggleMore}
+                            variant={isMoreOpen ? "danger" : "ghost"}
+                            className="rounded-full p-2 md:p-3 hover:bg-gray-700">
+                            <Settings className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                        </Button>
+
+                        <Button
                             onClick={handleEndCall}
                             variant="danger"
                             className="rounded-full p-2 md:p-3">
@@ -1080,6 +1097,74 @@ const VideoCallPage = () => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* More Settings Panel */}
+            {isMoreOpen && (
+                <div className="fixed left-1/2 transform -translate-x-1/2 bottom-24 md:bottom-28 w-72 bg-gray-800 rounded-lg shadow-2xl z-50 border border-gray-700">
+                    <div className="p-4 border-b border-gray-700">
+                        <h3 className="font-semibold text-white flex items-center gap-2">
+                            <Settings className="w-4 h-4" />
+                            Settings
+                        </h3>
+                    </div>
+
+                    <div className="p-4 space-y-4">
+                        {/* Echo Cancellation */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-white">Echo Cancellation</p>
+                                <p className="text-xs text-gray-400">Remove echo from audio</p>
+                            </div>
+                            <button
+                                onClick={() => setEchoCancellation(!echoCancellation)}
+                                className={`relative w-11 h-6 rounded-full transition-colors ${echoCancellation ? 'bg-blue-600' : 'bg-gray-600'
+                                    }`}
+                            >
+                                <span
+                                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${echoCancellation ? 'translate-x-5' : 'translate-x-0'
+                                        }`}
+                                />
+                            </button>
+                        </div>
+
+                        {/* Auto Gain Control */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-white">Auto Gain Control</p>
+                                <p className="text-xs text-gray-400">Auto-adjust mic volume</p>
+                            </div>
+                            <button
+                                onClick={() => setAutoGainControl(!autoGainControl)}
+                                className={`relative w-11 h-6 rounded-full transition-colors ${autoGainControl ? 'bg-blue-600' : 'bg-gray-600'
+                                    }`}
+                            >
+                                <span
+                                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autoGainControl ? 'translate-x-5' : 'translate-x-0'
+                                        }`}
+                                />
+                            </button>
+                        </div>
+
+                        {/* Noise Suppression */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-white">Noise Suppression</p>
+                                <p className="text-xs text-gray-400">Filter background noise</p>
+                            </div>
+                            <button
+                                onClick={() => setNoiseSuppression(!noiseSuppression)}
+                                className={`relative w-11 h-6 rounded-full transition-colors ${noiseSuppression ? 'bg-blue-600' : 'bg-gray-600'
+                                    }`}
+                            >
+                                <span
+                                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${noiseSuppression ? 'translate-x-5' : 'translate-x-0'
+                                        }`}
+                                />
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
