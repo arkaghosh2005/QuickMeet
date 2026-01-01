@@ -5,12 +5,14 @@ if (process.env.NODE_ENV !== "production") {
 
 import express from "express";
 import { createServer } from "node:http";
+import { connectToSocket } from "./controllers/socketManager.js";
 import mongoose from "mongoose";
 import cors from "cors";
 import userRoutes from "./routes/users.routes.js";
 
 const app = express();
 const server = createServer(app);
+const io = connectToSocket(server);
 const clientUrl = process.env.CLIENT_URL;
 
 if (!clientUrl) {
