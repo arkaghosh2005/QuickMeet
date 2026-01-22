@@ -29,6 +29,7 @@
 - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
 - [Application Flow](#application-flow)
+- [Sponsor](#sponsor)
 - [License](#license)
 
 ---
@@ -558,6 +559,23 @@ Landing Page (Guest Join / Login / Signup)
    Video Call Page
   (Full Meeting Experience)
 ```
+
+---
+
+<a id="sponsor"></a>
+
+## 💖 Sponsor
+
+If you find QuickMeet helpful and would like to support its continued development, consider sponsoring!
+
+<div align="center">
+
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor%20on-GitHub-ea4aaa?style=for-the-badge&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/arkaghosh2005)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A-Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=white)](https://buymeacoffee.com/arkaghosh2005)
+
+</div>
+
+Your support helps cover hosting costs, development time, and enables new features. Every contribution is greatly appreciated! ☕✨
 
 ---
 
