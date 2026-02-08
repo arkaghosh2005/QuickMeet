@@ -4,6 +4,7 @@ import { Video, Users, Calendar, ArrowRight, LogOut } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import DarkModeToggle from '../components/DarkModeToggle';
+import SEO from '../components/SEO';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -84,6 +85,13 @@ const MeetingEntryPage = () => {
     ];
 
     return (
+        <>
+        <SEO
+            title="Meeting Dashboard"
+            description="Start a new video meeting or join an existing one. Create rooms, view meeting history, and manage your QuickMeet experience."
+            path="/meeting-entry"
+            noIndex={true}
+        />
         <div className={`min-h-screen ${isDarkMode
             ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
             : "bg-gradient-to-br from-blue-50 via-white to-green-50"
@@ -218,6 +226,7 @@ const MeetingEntryPage = () => {
                 </div>
             </main>
         </div>
+        </>
     );
 };
 

@@ -3,6 +3,7 @@ import { Video, Users, Shield, Smartphone } from "lucide-react";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import DarkModeToggle from "../components/DarkModeToggle";
+import SEO from "../components/SEO";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -71,12 +72,18 @@ const LandingPage = () => {
     const isGuestNameValid = guestName.trim().length > 0;
 
     return (
-        <div
-            className={`min-h-screen ${isDarkMode
-                    ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-                    : "bg-gradient-to-br from-blue-50 via-white to-green-50"
-                } animate-fadeInUp`}
-        >
+        <>
+            <SEO
+                title="Home"
+                description="QuickMeet - Professional video meetings made simple. Join or host HD video calls with screen sharing, real-time chat, and peer-to-peer encryption. Free to use."
+                path="/"
+            />
+            <div
+                className={`min-h-screen ${isDarkMode
+                        ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+                        : "bg-gradient-to-br from-blue-50 via-white to-green-50"
+                    } animate-fadeInUp`}
+            >
             {/* Header */}
             <header
                 className={`${isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white"
@@ -94,7 +101,7 @@ const LandingPage = () => {
                             </span>
                         </div>
 
-                        <div className="flex items-center space-x-4">
+                        <nav className="flex items-center space-x-4" aria-label="Main navigation">
                             <DarkModeToggle />
                             <Button
                                 variant="ghost"
@@ -109,7 +116,7 @@ const LandingPage = () => {
                             <Button onClick={navigateToSignup} className="hidden xs:inline-flex">
                                 Get Started
                             </Button>
-                        </div>
+                        </nav>
                     </div>
                 </div>
             </header>
@@ -200,7 +207,7 @@ const LandingPage = () => {
                 </div>
 
                 {/* Features Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+                <section aria-label="Features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
                     {features.map((feature, index) => (
                         <div
                             key={index}
@@ -231,7 +238,7 @@ const LandingPage = () => {
                             </div>
                         </div>
                     ))}
-                </div>
+                </section>
 
                 {/* Call to Action Section */}
                 <div className="bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl p-8 text-center text-white">
@@ -266,6 +273,7 @@ const LandingPage = () => {
                 </div>
             </footer>
         </div>
+        </>
     );
 };
 

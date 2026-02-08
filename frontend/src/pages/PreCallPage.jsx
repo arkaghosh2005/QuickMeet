@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Video, VideoOff, Mic, MicOff, Settings, ArrowRight, ArrowLeft } from "lucide-react";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
 
 const PreCallPage = () => {
@@ -234,6 +235,13 @@ const PreCallPage = () => {
     };
 
     return (
+        <>
+        <SEO
+            title={`Pre-Call Setup - ${meetingCode}`}
+            description="Configure your camera, microphone, and display name before joining your QuickMeet video meeting."
+            path={`/pre-call/${meetingCode}`}
+            noIndex={true}
+        />
         <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
             <div className="w-full max-w-4xl">
                 {/* Header */}
@@ -366,6 +374,7 @@ const PreCallPage = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

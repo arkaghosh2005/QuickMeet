@@ -8,6 +8,7 @@ import MeetingEntryPage from "./pages/MeetingEntryPage";
 import MeetingHistoryPage from "./pages/MeetingHistoryPage";
 import PreCallPage from "./pages/PreCallPage";
 import VideoCallPage from "./pages/VideoCallPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -78,6 +79,9 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+
+        {/* 404 Catch-All */}
+        <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

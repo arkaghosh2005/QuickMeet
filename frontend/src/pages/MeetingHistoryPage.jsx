@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Video, Users, ArrowLeft, Clock, Calendar, Loader2, Trash2 } from 'lucide-react';
 import Button from '../components/Button';
 import DarkModeToggle from '../components/DarkModeToggle';
+import SEO from '../components/SEO';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -104,6 +105,13 @@ const MeetingHistoryPage = () => {
     };
 
     return (
+        <>
+        <SEO
+            title="Meeting History"
+            description="View and rejoin your past QuickMeet video meetings. Track your meeting history and quickly reconnect."
+            path="/meeting-history"
+            noIndex={true}
+        />
         <div className={`min-h-screen ${isDarkMode
             ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
             : "bg-gradient-to-br from-blue-50 via-white to-green-50"
@@ -277,6 +285,7 @@ const MeetingHistoryPage = () => {
                 </div>
             </main>
         </div>
+        </>
     );
 };
 

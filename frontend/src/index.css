@@ -97,3 +97,23 @@ body {
 .animate-bounce-in {
     animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .animate-fadeInUp,
+    .animate-scaleIn,
+    .animate-pulse,
+    .animate-spin,
+    .animate-bounce-in {
+        animation: none;
+    }
+}

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Video, ArrowLeft } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import SEO from '../components/SEO';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -74,6 +75,12 @@ const LoginPage = () => {
     const navigateToHome = () => navigate('/');
 
     return (
+        <>
+        <SEO
+            title="Log In"
+            description="Sign in to your QuickMeet account to start or join HD video meetings with screen sharing and real-time chat."
+            path="/login"
+        />
         <div
             className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4 animate-fadeInUp"
             style={{
@@ -132,7 +139,7 @@ const LoginPage = () => {
                     )}
 
                     {/* Login Form */}
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-6" aria-label="Login form">
                         <Input
                             type="text"
                             label="Email Address"
@@ -190,6 +197,7 @@ const LoginPage = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 
