@@ -5,6 +5,7 @@ import { useParams, useLocation } from "react-router-dom";
 import io from "socket.io-client";
 import axios from "axios";
 import ChatPanel from "../components/ChatPanel";
+import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
 
 const server_url = import.meta.env.VITE_SERVER_URL;
@@ -832,6 +833,13 @@ const VideoCallPage = () => {
     };
 
     return (
+        <>
+        <SEO
+            title={`Meeting - ${meetingCode}`}
+            description="You're in a QuickMeet video call. Enjoy HD video, screen sharing, and real-time chat."
+            path={`/${meetingCode}`}
+            noIndex={true}
+        />
         <div className="h-screen bg-gray-900 flex flex-col">
             {/* Header */}
             <header className="bg-gray-800 px-4 py-3 flex items-center justify-between">
@@ -1284,6 +1292,7 @@ const VideoCallPage = () => {
                 </div>
             )}
         </div>
+        </>
     );
 };
 
