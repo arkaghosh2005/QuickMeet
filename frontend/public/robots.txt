@@ -1,0 +1,9 @@
+# QuickMeet - Robots.txt
+User-agent: *
+Allow: /
+Disallow: /pre-call/
+Disallow: /meeting-entry
+Disallow: /meeting-history
+
+# Sitemap
+Sitemap: https://quickmeet-ag.vercel.app/sitemap.xml
