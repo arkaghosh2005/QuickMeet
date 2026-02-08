@@ -99,6 +99,19 @@
 | **Back Navigation Block** | Prevents accidental meeting exits via browser back button |
 | **Connection Recovery** | Handles peer disconnections gracefully |
 
+### 🔍 SEO & Web Optimization
+| Feature | Description |
+|---------|-------------|
+| **Per-Page Meta Tags** | Dynamic title, description, and canonical URL per route via `react-helmet-async` |
+| **Open Graph Tags** | Rich link previews on Facebook, LinkedIn, and other social platforms |
+| **Twitter Cards** | `summary_large_image` cards with custom OG image |
+| **Structured Data** | JSON-LD schemas (`WebApplication` + `Organization`) for search engine rich results |
+| **Sitemap & Robots.txt** | XML sitemap for crawlable pages; robots.txt blocks private routes |
+| **PWA Manifest** | Web app manifest with icons for installability and app metadata |
+| **404 Page** | Custom not-found page with `noindex` to prevent dead-end indexing |
+| **Accessibility** | `aria-label` on forms/nav, `prefers-reduced-motion` media query support |
+| **OG Image Component** | SVG-based Open Graph image component (1200×630) matching brand design |
+
 ---
 
 <a id="tech-stack"></a>
@@ -109,8 +122,7 @@
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | React | 19.2.3 | UI Framework with Hooks |
-| React Router DOM | 7.11.0 | Client-side Routing & Navigation |
-| Tailwind CSS | 3.3.6 | Utility-first CSS Styling |
+| React Router DOM | 7.11.0 | Client-side Routing & Navigation || React Helmet Async | 2.0.5 | Per-page SEO Meta Tags || Tailwind CSS | 3.3.6 | Utility-first CSS Styling |
 | Lucide React | 0.562.0 | Modern SVG Icon Library |
 | Socket.io Client | 4.8.1 | Real-time WebSocket Communication |
 | Axios | 1.13.2 | HTTP Client for API Calls |
@@ -184,7 +196,7 @@
 │  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
 │  │                              REUSABLE COMPONENTS                                         │   │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌───────────────┐ ┌───────────────────────┐  │   │
-│  │  │  Button  │ │  Input   │ │  ChatPanel   │ │ LoadingSpinner│ │   DarkModeToggle      │  │   │
+│  │  │  Button  │ │  Input   │ │  ChatPanel   │ │ LoadingSpinner│ │  DarkModeToggle /SEO  │  │   │
 │  │  └──────────┘ └──────────┘ └──────────────┘ └───────────────┘ └───────────────────────┘  │   │
 │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                                 │
@@ -288,13 +300,19 @@
 quickmeet/
 ├── frontend/                          # React Frontend Application
 │   ├── public/                        # Static assets
+│   │   ├── icon-192.svg               # PWA icon (192x192)
+│   │   ├── icon-512.svg               # PWA icon (512x512)
+│   │   ├── manifest.json              # Web app manifest (PWA)
+│   │   ├── robots.txt                 # Search engine crawl rules
+│   │   └── sitemap.xml                # XML sitemap for SEO
 │   ├── src/
 │   │   ├── components/                # Reusable UI Components
 │   │   │   ├── Button.jsx             # Custom button with variants
 │   │   │   ├── ChatPanel.jsx          # Floating chat interface
 │   │   │   ├── DarkModeToggle.jsx     # Theme switch component
 │   │   │   ├── Input.jsx              # Styled input fields
-│   │   │   └── LoadingSpinner.jsx     # Loading indicator
+│   │   │   ├── LoadingSpinner.jsx     # Loading indicator
+│   │   │   └── SEO.jsx                # Per-page SEO meta tags component
 │   │   │
 │   │   ├── context/                   # React Context Providers
 │   │   │   ├── AuthContext.jsx        # Authentication state & methods
@@ -306,15 +324,18 @@ quickmeet/
 │   │   │   ├── SignupPage.jsx         # User registration form
 │   │   │   ├── MeetingEntryPage.jsx   # Create/Join meeting interface
 │   │   │   ├── MeetingHistoryPage.jsx # Past meetings with rejoin/delete
+│   │   │   ├── NotFoundPage.jsx       # Custom 404 page
 │   │   │   ├── PreCallPage.jsx        # Pre-call setup & preview
 │   │   │   └── VideoCallPage.jsx      # Main video call interface (1000+ lines)
 │   │   │
 │   │   ├── App.jsx                    # Root component with routing
-│   │   ├── main.jsx                   # Application entry point
-│   │   └── index.css                  # Global styles & Tailwind imports
+│   │   ├── main.jsx                   # Application entry point (HelmetProvider)
+│   │   ├── index.css                  # Global styles, Tailwind & reduced-motion
+│   │   └── opengraph-image.jsx        # OG image component (1200×630 SVG)
 │   │
 │   ├── .env                           # Environment variables
-│   ├── index.html                     # HTML template
+│   ├── .npmrc                         # npm config (legacy-peer-deps)
+│   ├── index.html                     # HTML template with full SEO metadata
 │   ├── package.json                   # Frontend dependencies
 │   ├── tailwind.config.js             # Tailwind CSS configuration
 │   ├── vite.config.ts                 # Vite build configuration
