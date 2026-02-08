@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import LandingPage from "./pages/LandingPage";
@@ -10,6 +10,9 @@ import PreCallPage from "./pages/PreCallPage";
 import VideoCallPage from "./pages/VideoCallPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
+// Meeting code format: ABC-1234-XYZ (3 alphanum - 4 alphanum - 3 alphanum)
+const MEETING_CODE_REGEX = /^[A-Z0-9]{3}-[A-Z0-9]{4}-[A-Z0-9]{3}$/;
+
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { userData } = useAuth();
@@ -18,6 +21,15 @@ const ProtectedRoute = ({ children }) => {
   }
 
   return <Navigate to="/" replace />;
+};
+
+// Validates meetingCode param format, renders 404 if invalid
+const ValidMeetingRoute = ({ children }) => {
+  const { meetingCode } = useParams();
+  if (!MEETING_CODE_REGEX.test(meetingCode)) {
+    return <NotFoundPage />;
+  }
+  return <>{children}</>;
 };
 
 // App Routes Component
@@ -74,9 +86,11 @@ const AppRoutes = () => {
         <Route
           path="/:meetingCode"
           element={
-            <ProtectedRoute>
-              <VideoCallPage />
-            </ProtectedRoute>
+            <ValidMeetingRoute>
+              <ProtectedRoute>
+                <VideoCallPage />
+              </ProtectedRoute>
+            </ValidMeetingRoute>
           }
         />
 
