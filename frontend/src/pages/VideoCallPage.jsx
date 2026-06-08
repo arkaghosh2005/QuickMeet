@@ -1,4 +1,4 @@
-import { Video, VideoOff, Mic, Mic2, MicOff, Camera, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus, Settings } from "lucide-react";
+import { Video, VideoOff, Mic, Mic2, MicOff, Camera, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus, Settings, Link2, WifiOff, Loader2 } from "lucide-react";
 import Button from "../components/Button";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation } from "react-router-dom";
@@ -65,7 +65,7 @@ const VideoCallPage = () => {
     const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
 
     // UI States and Chat
-    const [showCopiedToast, setShowCopiedToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
     let [messages, setMessages] = useState([]);
     let [newMessages, setNewMessages] = useState(0);
 
@@ -83,6 +83,9 @@ const VideoCallPage = () => {
 
     // Leave confirmation
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
+    // Connection status
+    const [connectionStatus, setConnectionStatus] = useState('connected');
 
 
     useEffect(() => {
@@ -113,6 +116,20 @@ const VideoCallPage = () => {
 
         return () => {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        };
+    }, []);
+
+    // Warn before closing tab during active call
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            e.preventDefault();
+            e.returnValue = '';
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
         };
     }, []);
 
@@ -511,10 +528,29 @@ const VideoCallPage = () => {
         if (socketRef.current?.connected) return;
 
         socketRef.current?.disconnect();
-        socketRef.current = io.connect(server_url, { secure: false });
+        socketRef.current = io.connect(server_url, {
+            secure: false,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+        });
         socketRef.current.on('signal', gotMessageFromServer);
 
+        // Connection status tracking
+        socketRef.current.on('disconnect', () => {
+            setConnectionStatus('reconnecting');
+        });
+
+        socketRef.current.io.on('reconnect_attempt', () => {
+            setConnectionStatus('reconnecting');
+        });
+
+        socketRef.current.io.on('reconnect_failed', () => {
+            setConnectionStatus('disconnected');
+        });
+
         socketRef.current.on('connect', () => {
+            setConnectionStatus('connected');
             const socket = socketRef.current;
             const myId = socket?.id;
 
@@ -811,9 +847,23 @@ const VideoCallPage = () => {
     const copyMeetingCode = () => {
         if (meetingCode) {
             navigator.clipboard.writeText(meetingCode);
-            setShowCopiedToast(true);
-            setTimeout(() => setShowCopiedToast(false), 2000);
+            setToastMessage('Meeting code copied!');
+            setTimeout(() => setToastMessage(''), 2000);
         }
+    };
+
+    const copyMeetingLink = () => {
+        const link = `${window.location.origin}/pre-call/${meetingCode}`;
+        navigator.clipboard.writeText(link);
+        setToastMessage('Meeting link copied!');
+        setTimeout(() => setToastMessage(''), 2000);
+    };
+
+    const handleManualReconnect = () => {
+        setConnectionStatus('reconnecting');
+        socketRef.current?.disconnect();
+        socketRef.current = null;
+        connectToSocketServer();
     };
 
     const getInitials = (name) => {
@@ -894,6 +944,15 @@ const VideoCallPage = () => {
                         >
                             <Copy className="w-4 h-4" />
                         </Button>
+                        <Button
+                            onClick={copyMeetingLink}
+                            variant="primary"
+                            size="sm"
+                            className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
+                            title="Copy meeting invite link"
+                        >
+                            <Link2 className="w-4 h-4" />
+                        </Button>
                     </div>
                 </div>
 
@@ -912,15 +971,42 @@ const VideoCallPage = () => {
                 </div>
             </header>
 
+            {/* Connection Status Bar */}
+            {connectionStatus !== 'connected' && (
+                <div className={`px-4 py-2 flex items-center justify-center space-x-2 text-sm font-medium ${
+                    connectionStatus === 'reconnecting'
+                        ? 'bg-yellow-600/90 text-white'
+                        : 'bg-red-600/90 text-white'
+                }`}>
+                    {connectionStatus === 'reconnecting' ? (
+                        <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Reconnecting...</span>
+                        </>
+                    ) : (
+                        <>
+                            <WifiOff className="w-4 h-4" />
+                            <span>Connection lost</span>
+                            <button
+                                onClick={handleManualReconnect}
+                                className="ml-2 px-3 py-1 text-sm border border-white/30 rounded hover:bg-white/10 transition-colors"
+                            >
+                                Reconnect
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
+
             {/* Toast Notification */}
-            {showCopiedToast && (
+            {toastMessage && (
                 <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg shadow-2xl z-50 flex items-center space-x-2 transition-all duration-300 ease-in-out animate-bounce-in">
                     <div className="bg-white rounded-full p-1">
                         <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                     </div>
-                    <span className="font-medium">Meeting code copied!</span>
+                    <span className="font-medium">{toastMessage}</span>
                 </div>
             )}
 
