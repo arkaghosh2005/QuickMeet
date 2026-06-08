@@ -7,11 +7,11 @@
 ![React](https://img.shields.io/badge/React-19.2.3-61DAFB?style=for-the-badge&logo=react&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-24.x-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![WebRTC](https://img.shields.io/badge/WebRTC-Enabled-FF6B6B?style=for-the-badge&logo=webrtc&logoColor=white)
-![Socket.io](https://img.shields.io/badge/Socket.io-4.8.1-010101?style=for-the-badge&logo=socket.io&logoColor=white)
+![Socket.io](https://img.shields.io/badge/Socket.io-4.8.2-010101?style=for-the-badge&logo=socket.io&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.3.6-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-9.x-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5.2.1-000000?style=for-the-badge&logo=express&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-7.3.0-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-7.3.5-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
 **A fully-featured, responsive video conferencing platform similar to Zoom/Google Meet, built from scratch using modern web technologies with WebRTC peer-to-peer connections.**
 
@@ -102,6 +102,10 @@
 | **Tab Close Warning** | `beforeunload` prompt prevents accidental tab closure during calls |
 | **Connection Recovery** | Auto-reconnect with visual status bar and manual reconnect fallback |
 | **Leave Confirmation** | Modal dialog before ending a call to prevent accidental disconnects |
+| **Security Headers** | `helmet` middleware sets strict HTTP security headers (CSP, HSTS, X-Frame-Options) |
+| **Graceful Shutdown** | Server handles `SIGTERM`/`SIGINT` to cleanly close connections before exit |
+| **Health Check** | `GET /health` endpoint for uptime monitoring and load balancer probes |
+| **Socket Authentication** | JWT-verified Socket.io connections — unauthenticated sockets are rejected |
 
 ### 🔍 SEO & Web Optimization
 | Feature | Description |
@@ -113,7 +117,7 @@
 | **Sitemap & Robots.txt** | XML sitemap for crawlable pages; robots.txt blocks private routes |
 | **PWA Manifest** | Web app manifest with icons for installability and app metadata |
 | **404 Page** | Custom not-found page with `noindex` to prevent dead-end indexing |
-| **Accessibility** | `aria-label` on forms/nav, `prefers-reduced-motion` media query support |
+| **Accessibility** | `aria-label` on all icon buttons, `role="switch"` on toggles, focus-trapped modals, `prefers-reduced-motion` support |
 | **OG Image Component** | SVG-based Open Graph image component (1200×630) matching brand design |
 
 ---
@@ -126,23 +130,25 @@
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | React | 19.2.3 | UI Framework with Hooks |
-| React Router DOM | 7.11.0 | Client-side Routing & Navigation || React Helmet Async | 2.0.5 | Per-page SEO Meta Tags || Tailwind CSS | 3.3.6 | Utility-first CSS Styling |
+| React Router DOM | 7.17.0 | Client-side Routing & Navigation |
+| React Helmet Async | 3.0.0 | Per-page SEO Meta Tags |
+| Tailwind CSS | 3.3.6 | Utility-first CSS Styling |
 | Lucide React | 0.562.0 | Modern SVG Icon Library |
 | Socket.io Client | 4.8.1 | Real-time WebSocket Communication |
-| Axios | 1.13.2 | HTTP Client for API Calls |
-| Vite | 7.3.0 | Next-gen Build Tool & Dev Server |
-| TypeScript | 5.9.3 | Type Checking (Config only) |
+| Axios | 1.17.0 | HTTP Client for API Calls |
+| Vite | 7.3.5 | Next-gen Build Tool & Dev Server |
 
 ### Backend Technologies
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | Node.js | 24.x | JavaScript Runtime |
 | Express.js | 5.2.1 | Web Application Framework |
-| Socket.io | 4.8.1 | WebSocket Server for Signaling |
+| Socket.io | 4.8.2 | WebSocket Server for Signaling |
 | MongoDB | Cloud | NoSQL Database |
-| Mongoose | 9.0.2 | MongoDB ODM |
+| Mongoose | 9.6.3 | MongoDB ODM |
 | bcrypt | 6.0.0 | Password Hashing |
 | jsonwebtoken | latest | JWT Token Auth |
+| helmet | 8.2.0 | HTTP Security Headers |
 | express-validator | latest | Input Validation |
 | express-rate-limit | latest | Rate Limiting |
 | CORS | 2.8.5 | Cross-Origin Resource Sharing |
@@ -275,10 +281,14 @@ The application currently uses **only STUN servers** (Google's public STUN serve
 │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                                 │
 │  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                              BACKGROUND JOBS (app.js)                                    │   │
+│  │                              DATABASE & LIFECYCLE                                       │   │
 │  │  ┌───────────────────────────────────┐  ┌─────────────────────────────────────────────┐  │   │
-│  │  │  Meeting Cleanup (Every 6 hours)  │  │  Room Cleanup (On disconnect)               │  │   │
-│  │  │  Delete meetings > 30 days old    │  │  Remove empty rooms after timeout           │  │   │
+│  │  │  Meeting TTL Index (30 days)      │  │  Room Cleanup (On disconnect)               │  │   │
+│  │  │  MongoDB auto-deletes old docs    │  │  Remove empty rooms after timeout           │  │   │
+│  │  └───────────────────────────────────┘  └─────────────────────────────────────────────┘  │   │
+│  │  ┌───────────────────────────────────┐  ┌─────────────────────────────────────────────┐  │   │
+│  │  │  GET /health                      │  │  Graceful Shutdown                          │  │   │
+│  │  │  Uptime monitoring endpoint       │  │  SIGTERM/SIGINT → close server → disconnect │  │   │
 │  │  └───────────────────────────────────┘  └─────────────────────────────────────────────┘  │   │
 │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                                 │
@@ -350,7 +360,6 @@ quickmeet/
 │   │   └── opengraph-image.jsx        # OG image component (1200×630 SVG)
 │   │
 │   ├── .env                           # Environment variables
-│   ├── .npmrc                         # npm config (legacy-peer-deps)
 │   ├── index.html                     # HTML template with full SEO metadata
 │   ├── package.json                   # Frontend dependencies
 │   ├── tailwind.config.js             # Tailwind CSS configuration
