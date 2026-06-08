@@ -248,7 +248,14 @@ const PreCallPage = () => {
                 <div className="text-center mb-10">
                     <Button
                         variant="ghost"
-                        onClick={() => window.location.href = "/"}
+                        onClick={() => {
+                            try {
+                                if (window.localStream?.getTracks) {
+                                    window.localStream.getTracks().forEach(track => track.stop());
+                                }
+                            } catch (e) { /* ignore */ }
+                            navigate("/meeting-entry");
+                        }}
                         className="absolute top-4 left-4 text-white hover:bg-gray-800">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back

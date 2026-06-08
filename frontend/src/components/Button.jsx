@@ -1,7 +1,8 @@
+import { forwardRef } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import { useTheme } from '../context/ThemeContext';
 
-const Button = ({
+const Button = forwardRef(({
     variant = 'primary',
     size = 'md',
     loading = false,
@@ -9,7 +10,7 @@ const Button = ({
     className = '',
     disabled,
     ...props
-}) => {
+}, ref) => {
     const { isDarkMode } = useTheme();
 
     // Base styles that apply to all buttons
@@ -60,6 +61,7 @@ const Button = ({
 
     return (
         <button
+            ref={ref}
             className={buttonClasses}
             disabled={isDisabled}
             {...props}
@@ -68,6 +70,8 @@ const Button = ({
             {children}
         </button>
     );
-};
+});
+
+Button.displayName = 'Button';
 
 export default Button;

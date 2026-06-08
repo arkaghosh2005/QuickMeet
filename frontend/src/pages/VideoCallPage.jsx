@@ -943,6 +943,7 @@ const VideoCallPage = () => {
                             onClick={copyMeetingCode}
                             variant="primary"
                             size="sm"
+                            aria-label="Copy meeting code"
                             className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                         >
                             <Copy className="w-4 h-4" />
@@ -951,6 +952,7 @@ const VideoCallPage = () => {
                             onClick={copyMeetingLink}
                             variant="primary"
                             size="sm"
+                            aria-label="Copy meeting invite link"
                             className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                             title="Copy meeting invite link"
                         >
@@ -967,6 +969,7 @@ const VideoCallPage = () => {
                         onClick={toggleParticipants}
                         variant="primary"
                         size="sm"
+                        aria-label="Toggle participants panel"
                         className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                     >
                         <Users className="w-4 h-4" />
@@ -1150,6 +1153,7 @@ const VideoCallPage = () => {
                         <Button
                             onClick={toggleAudio}
                             variant={audio ? "ghost" : "danger"}
+                            aria-label={audio ? "Mute microphone" : "Unmute microphone"}
                             className={`rounded-full p-2 md:p-3 ${audio ? "hover:bg-gray-700" : ""}`}
                         >
                             {audio ? (
@@ -1162,6 +1166,7 @@ const VideoCallPage = () => {
                         <Button
                             onClick={toggleVideo}
                             variant={video ? "ghost" : "danger"}
+                            aria-label={video ? "Turn off camera" : "Turn on camera"}
                             className={`rounded-full p-2 md:p-3 ${video ? "hover:bg-gray-700" : ""}`}
                         >
                             {video ? (
@@ -1174,6 +1179,7 @@ const VideoCallPage = () => {
                         <Button
                             onClick={toggleSpeaker}
                             variant={isSpeakerOn ? "ghost" : "danger"}
+                            aria-label={isSpeakerOn ? "Mute speaker" : "Unmute speaker"}
                             className="rounded-full p-2 md:p-3 hover:bg-gray-700">
                             {isSpeakerOn ? (
                                 <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-white" />
@@ -1185,6 +1191,7 @@ const VideoCallPage = () => {
                         <Button
                             onClick={toggleScreenShare}
                             variant={screenShare ? "danger" : "ghost"}
+                            aria-label={screenShare ? "Stop screen sharing" : "Share screen"}
                             className="rounded-full p-2 md:p-3 hover:bg-gray-700 hidden sm:flex">
                             {screenShare ? (
                                 <MonitorOff className="w-4 h-4 md:w-5 md:h-5 text-white" />
@@ -1196,6 +1203,7 @@ const VideoCallPage = () => {
                         <Button
                             onClick={toggleChat}
                             variant={isChatOpen ? "danger" : "ghost"}
+                            aria-label={isChatOpen ? "Close chat" : "Open chat"}
                             className="rounded-full p-2 md:p-3 hover:bg-gray-700 relative">
                             <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-white" />
                             {newMessages > 0 && !isChatOpen && (
@@ -1206,6 +1214,7 @@ const VideoCallPage = () => {
                         <Button
                             onClick={toggleMore}
                             variant={isMoreOpen ? "danger" : "ghost"}
+                            aria-label={isMoreOpen ? "Close settings" : "Open settings"}
                             className="rounded-full p-2 md:p-3 hover:bg-gray-700">
                             <Settings className="w-4 h-4 md:w-5 md:h-5 text-white" />
                         </Button>
@@ -1213,6 +1222,7 @@ const VideoCallPage = () => {
                         <Button
                             onClick={() => setShowLeaveConfirm(true)}
                             variant="danger"
+                            aria-label="Leave meeting"
                             className="rounded-full p-2 md:p-3">
                             <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
                         </Button>
@@ -1368,6 +1378,9 @@ const VideoCallPage = () => {
                                 </div>
                                 <button
                                     onClick={() => setEchoCancellation(!echoCancellation)}
+                                    role="switch"
+                                    aria-checked={echoCancellation}
+                                    aria-label="Echo Cancellation"
                                     className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${echoCancellation ? 'bg-blue-600' : 'bg-gray-600'
                                         }`}
                                 >
@@ -1386,6 +1399,9 @@ const VideoCallPage = () => {
                                 </div>
                                 <button
                                     onClick={() => setAutoGainControl(!autoGainControl)}
+                                    role="switch"
+                                    aria-checked={autoGainControl}
+                                    aria-label="Auto Gain Control"
                                     className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${autoGainControl ? 'bg-blue-600' : 'bg-gray-600'
                                         }`}
                                 >
@@ -1404,6 +1420,9 @@ const VideoCallPage = () => {
                                 </div>
                                 <button
                                     onClick={() => setNoiseSuppression(!noiseSuppression)}
+                                    role="switch"
+                                    aria-checked={noiseSuppression}
+                                    aria-label="Noise Suppression"
                                     className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${noiseSuppression ? 'bg-blue-600' : 'bg-gray-600'
                                         }`}
                                 >
