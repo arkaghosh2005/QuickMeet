@@ -78,14 +78,16 @@ export const AuthProvider = ({ children }) => {
   const loginAsGuest = async (guestName) => {
     setLoading(true);
     try {
-      const guestUser = {
+      let request = await client.post("/guest", {
         name: guestName,
-        id: `guest-${Date.now()}`,
-      };
-      setUserData(guestUser);
-    localStorage.setItem("userData", JSON.stringify(guestUser));
+      });
+      if (request.status === httpStatus.OK) {
+        setUserData(request.data.user);
+        localStorage.setItem("userData", JSON.stringify(request.data.user));
+        localStorage.setItem("token", request.data.token);
+      }
     } catch (error) {
-      throw new Error("Error logging in as Guest");
+      throw new Error(error.response?.data?.message || "Error logging in as Guest");
     } finally {
       setLoading(false);
     }

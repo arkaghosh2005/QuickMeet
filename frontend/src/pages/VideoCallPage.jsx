@@ -533,6 +533,9 @@ const VideoCallPage = () => {
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
+            auth: {
+                token: localStorage.getItem('token'),
+            },
         });
         socketRef.current.on('signal', gotMessageFromServer);
 

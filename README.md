@@ -94,10 +94,14 @@
 | Feature | Description |
 |---------|-------------|
 | **Peer-to-Peer Encryption** | Secure WebRTC connections via STUN servers |
-| **Token Authentication** | Crypto-generated session tokens |
+| **JWT Authentication** | Stateless JSON Web Tokens with 7-day expiry |
 | **Password Hashing** | bcrypt with salt rounds for secure storage |
+| **Rate Limiting** | Auth endpoints (5/15min) and general (100/15min) via express-rate-limit |
+| **Input Validation** | Server-side validation on all endpoints via express-validator |
 | **Back Navigation Block** | Prevents accidental meeting exits via browser back button |
-| **Connection Recovery** | Handles peer disconnections gracefully |
+| **Tab Close Warning** | `beforeunload` prompt prevents accidental tab closure during calls |
+| **Connection Recovery** | Auto-reconnect with visual status bar and manual reconnect fallback |
+| **Leave Confirmation** | Modal dialog before ending a call to prevent accidental disconnects |
 
 ### 🔍 SEO & Web Optimization
 | Feature | Description |
@@ -138,7 +142,9 @@
 | MongoDB | Cloud | NoSQL Database |
 | Mongoose | 9.0.2 | MongoDB ODM |
 | bcrypt | 6.0.0 | Password Hashing |
-| crypto | Built-in | Token Generation |
+| jsonwebtoken | latest | JWT Token Auth |
+| express-validator | latest | Input Validation |
+| express-rate-limit | latest | Rate Limiting |
 | CORS | 2.8.5 | Cross-Origin Resource Sharing |
 
 ### WebRTC Infrastructure
@@ -148,6 +154,16 @@
 | MediaStream API | Camera, microphone, and screen capture |
 | STUN Servers | NAT traversal for peer discovery |
 | ICE Candidates | Connection establishment |
+
+### ⚠️ Known Limitations — STUN-Only WebRTC
+
+The application currently uses **only STUN servers** (Google's public STUN servers) for WebRTC peer connection establishment. **No TURN servers are configured.**
+
+| Aspect | Detail |
+|--------|--------|
+| **Connection failure rate** | ~15–20% of users behind symmetric NATs, corporate firewalls, or certain mobile networks may fail to connect |
+| **STUN servers used** | `stun:stun.l.google.com:19302` through `stun:stun4.l.google.com:19302` |
+| **To fix for production** | Add a TURN server ([Coturn](https://github.com/coturn/coturn), [Twilio NTS](https://www.twilio.com/docs/stun-turn), or [metered.ca](https://www.metered.ca/tools/openrelay/)) to `peerConfigConnections` in `VideoCallPage.jsx` |
 
 ---
 
@@ -278,7 +294,6 @@
                               │  │  • name: String                     │    │
                               │  │  • email: String (unique)           │    │
                               │  │  • password: String (bcrypt)        │    │
-                              │  │  • token: String (crypto)           │    │
                               │  └─────────────────────────────────────┘    │
                               │  ┌─────────────────────────────────────┐    │
                               │  │        Meetings Collection          │    │
@@ -309,6 +324,7 @@ quickmeet/
 │   │   ├── components/                # Reusable UI Components
 │   │   │   ├── Button.jsx             # Custom button with variants
 │   │   │   ├── ChatPanel.jsx          # Floating chat interface
+│   │   │   ├── ConfirmModal.jsx       # Reusable confirmation dialog
 │   │   │   ├── DarkModeToggle.jsx     # Theme switch component
 │   │   │   ├── Input.jsx              # Styled input fields
 │   │   │   ├── LoadingSpinner.jsx     # Loading indicator
@@ -353,6 +369,9 @@ quickmeet/
 │   │   │
 │   │   ├── routes/
 │   │   │   └── users.routes.js        # User API routes
+│   │   │
+│   │   ├── middleware/
+│   │   │   └── auth.js                # JWT authentication middleware
 │   │   │
 │   │   └── app.js                     # Express server entry point
 │   │
@@ -422,7 +441,7 @@ quickmeet/
 
 ```env
 # Server Configuration
-PORT=8000
+PORT=3000
 NODE_ENV=development
 
 # MongoDB Connection
@@ -430,6 +449,9 @@ MONGO_URL=mongodb+srv://<username>:<password>@cluster.mongodb.net/quickmeet
 
 # CORS - Allowed Origins
 CLIENT_URL=http://localhost:5173
+
+# JWT Secret (use a strong random string in production)
+JWT_SECRET=your_jwt_secret_key_here
 ```
 
 ### Frontend (`frontend/.env`)
@@ -489,7 +511,7 @@ Authenticate an existing user.
 **Response:** `200 OK`
 ```json
 {
-  "token": "abc123xyz...",
+  "token": "eyJhbGciOiJIUzI1NiIs...",
   "user": {
     "name": "John Doe",
     "email": "john@example.com"
@@ -497,10 +519,14 @@ Authenticate an existing user.
 }
 ```
 
+> **Note:** The `token` is a JWT (JSON Web Token) valid for 7 days. Include it as `Authorization: Bearer <token>` header in all protected requests.
+
 ---
 
-#### `GET /v1/users/history?token={token}`
+#### `GET /v1/users/history`
 Get user's meeting history with active room status.
+
+**Headers:** `Authorization: Bearer <token>`
 
 **Response:** `200 OK`
 ```json
@@ -519,10 +545,11 @@ Get user's meeting history with active room status.
 #### `POST /v1/users/history`
 Add a meeting to user's history (updates timestamp if meeting already exists).
 
+**Headers:** `Authorization: Bearer <token>`
+
 **Request Body:**
 ```json
 {
-  "token": "abc123xyz...",
   "meeting_code": "ABC-1234-XYZ"
 }
 ```
@@ -539,10 +566,11 @@ Add a meeting to user's history (updates timestamp if meeting already exists).
 #### `DELETE /v1/users/history`
 Delete a specific meeting from user's history.
 
+**Headers:** `Authorization: Bearer <token>`
+
 **Request Body:**
 ```json
 {
-  "token": "abc123xyz...",
   "meeting_id": "64abc123..."
 }
 ```

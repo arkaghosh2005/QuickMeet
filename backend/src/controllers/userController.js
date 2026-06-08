@@ -6,25 +6,6 @@ import { validationResult } from "express-validator";
 import { Meeting } from "../models/meetingModel.js";
 import { getActiveRooms } from "./socketManager.js";
 
-const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
-
-// Auto-delete meetings older than 30 days
-const cleanupOldMeetings = async () => {
-    try {
-        const thirtyDaysAgo = new Date(Date.now() - THIRTY_DAYS);
-        const result = await Meeting.deleteMany({ date: { $lt: thirtyDaysAgo } });
-        if (result.deletedCount > 0) {
-            console.log(`Auto-deleted ${result.deletedCount} meetings older than 30 days`);
-        }
-    } catch (e) {
-        console.error('Error cleaning up old meetings:', e);
-    }
-};
-
-// Run cleanup on module load / server start and then every 6 hours
-cleanupOldMeetings();
-setInterval(cleanupOldMeetings, 6 * 60 * 60 * 1000);
-
 const login = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -83,18 +64,37 @@ const signup = async (req, res) => {
     }
 }
 
+const loginAsGuest = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { name } = req.body;
+    try {
+        const guestId = `guest-${Date.now()}`;
+        const token = jwt.sign(
+            { name, id: guestId, isGuest: true },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+        return res.status(httpStatus.OK).json({
+            token,
+            user: { name, id: guestId }
+        });
+    } catch (e) {
+        return res.status(500).json({ message: "Something went Wrong." });
+    }
+}
+
 const getUserHistory = async (req, res) => {
     try {
         const userEmail = req.user.email;
 
-        // Delete meetings older than 30 days for this user
-        const thirtyDaysAgo = new Date(Date.now() - THIRTY_DAYS);
-        await Meeting.deleteMany({ user_id: userEmail, date: { $lt: thirtyDaysAgo } });
-        
         // Get active rooms from socket manager
         const activeRooms = getActiveRooms();
         
-        // Fetch meetings and add active status
+        // Fetch meetings and add active status (TTL index handles auto-expiry)
         const meetings = await Meeting.find({ user_id: userEmail }).sort({ date: -1 });
         const meetingsWithStatus = meetings.map(meeting => ({
             ...meeting.toObject(),
@@ -154,4 +154,4 @@ const deleteFromHistory = async (req, res) => {
     }
 }
 
-export { login, signup, getUserHistory, addToHistory, deleteFromHistory };
+export { login, signup, loginAsGuest, getUserHistory, addToHistory, deleteFromHistory };

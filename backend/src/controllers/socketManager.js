@@ -4,6 +4,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 import { Server } from "socket.io"
+import jwt from "jsonwebtoken"
 
 let connections = {}
 let messages = {}
@@ -72,6 +73,21 @@ export const connectToSocket = (server) => {
             }
         }, ROOM_EXPIRY_TIME);
     };
+
+    // Socket.io JWT authentication middleware
+    io.use((socket, next) => {
+        const token = socket.handshake.auth?.token;
+        if (!token) {
+            return next(new Error("Authentication required"));
+        }
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            socket.user = decoded;
+            next();
+        } catch (err) {
+            return next(new Error("Invalid or expired token"));
+        }
+    });
 
     io.on("connection", (socket) => {
         socket.on("join-call", ({ roomUrl, userName, userRole, video, audio }) => {
