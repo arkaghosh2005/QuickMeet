@@ -5,6 +5,7 @@ import { useParams, useLocation } from "react-router-dom";
 import io from "socket.io-client";
 import axios from "axios";
 import ChatPanel from "../components/ChatPanel";
+import ConfirmModal from "../components/ConfirmModal";
 import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
 
@@ -75,6 +76,14 @@ const VideoCallPage = () => {
     // Real participants data - Dynamically tracked from socket
     const [participants, setParticipants] = useState([]);
 
+    // Timer
+    const meetingStartTimeRef = useRef(null);
+    const timerIntervalRef = useRef(null);
+    const [elapsedTime, setElapsedTime] = useState("00:00:00");
+
+    // Leave confirmation
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
 
     useEffect(() => {
         // Block back navigation
@@ -88,6 +97,22 @@ const VideoCallPage = () => {
 
         return () => {
             window.removeEventListener("popstate", blockNav);
+        };
+    }, []);
+
+    // Meeting elapsed timer
+    useEffect(() => {
+        timerIntervalRef.current = setInterval(() => {
+            if (!meetingStartTimeRef.current) return;
+            const diff = Math.floor((Date.now() - meetingStartTimeRef.current) / 1000);
+            const hrs = String(Math.floor(diff / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+            const secs = String(diff % 60).padStart(2, '0');
+            setElapsedTime(`${hrs}:${mins}:${secs}`);
+        }, 1000);
+
+        return () => {
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
     }, []);
 
@@ -493,6 +518,11 @@ const VideoCallPage = () => {
             const socket = socketRef.current;
             const myId = socket?.id;
 
+            // Start meeting timer
+            if (!meetingStartTimeRef.current) {
+                meetingStartTimeRef.current = Date.now();
+            }
+
             socket.emit('join-call', {
                 roomUrl: window.location.href,
                 userName: initialState.displayName,
@@ -730,6 +760,9 @@ const VideoCallPage = () => {
     };
 
     const handleEndCall = () => {
+        // Clear timer
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
         // Stop all media tracks
         window.localStream?.getTracks().forEach(t => t.stop());
         window.screenStream?.getTracks().forEach(t => t.stop());
@@ -846,6 +879,9 @@ const VideoCallPage = () => {
             <header className="bg-gray-800 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                     <h1 className="text-white font-semibold">Meeting</h1>
+                    <span className="text-gray-400 text-sm font-mono bg-gray-700/50 px-2 py-0.5 rounded hidden sm:inline">
+                        {elapsedTime}
+                    </span>
                     <div className="flex items-center space-x-2">
                         <span className="text-gray-300 text-sm font-mono">
                             {meetingCode}
@@ -1086,7 +1122,7 @@ const VideoCallPage = () => {
                         </Button>
 
                         <Button
-                            onClick={handleEndCall}
+                            onClick={() => setShowLeaveConfirm(true)}
                             variant="danger"
                             className="rounded-full p-2 md:p-3">
                             <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
@@ -1292,6 +1328,17 @@ const VideoCallPage = () => {
                     </div>
                 </div>
             )}
+
+            {/* Leave Meeting Confirmation Modal */}
+            <ConfirmModal
+                isOpen={showLeaveConfirm}
+                title="Leave Meeting?"
+                message="Are you sure you want to leave this meeting? You can rejoin later using the same meeting code."
+                confirmText="Leave"
+                cancelText="Cancel"
+                onConfirm={handleEndCall}
+                onCancel={() => setShowLeaveConfirm(false)}
+            />
         </div>
         </>
     );

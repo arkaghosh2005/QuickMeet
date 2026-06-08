@@ -70,6 +70,7 @@ const MeetingEntryPage = () => {
             icon: <Calendar className="w-8 h-8 text-purple-600" />,
             title: 'Schedule Meeting',
             description: 'Plan a meeting for later',
+            comingSoon: true,
         },
         {
             icon: <Users className="w-8 h-8 text-orange-600" />,
@@ -81,6 +82,7 @@ const MeetingEntryPage = () => {
             icon: <Video className="w-8 h-8 text-red-600" />,
             title: 'Settings',
             description: 'Configure preferences',
+            comingSoon: true,
         },
     ];
 
@@ -207,12 +209,23 @@ const MeetingEntryPage = () => {
                         {quickActions.map((action, index) => (
                             <div
                                 key={index}
-                                onClick={action.onClick}
+                                onClick={action.comingSoon ? undefined : action.onClick}
                                 className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"
-                                    } rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow cursor-pointer ${
-                                    action.onClick ? 'hover:scale-105 transition-transform' : 'opacity-75'
+                                    } rounded-xl p-6 shadow-lg transition-shadow relative ${
+                                    action.comingSoon
+                                        ? 'opacity-60 cursor-not-allowed'
+                                        : action.onClick
+                                            ? 'hover:shadow-xl hover:scale-105 transition-transform cursor-pointer'
+                                            : 'opacity-75 cursor-pointer'
                                     }`}
                             >
+                                {action.comingSoon && (
+                                    <span className={`absolute top-3 right-3 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                        isDarkMode ? "bg-purple-500/20 text-purple-300 border border-purple-500/30" : "bg-purple-100 text-purple-700"
+                                    }`}>
+                                        Coming Soon
+                                    </span>
+                                )}
                                 <div className="mb-3">{action.icon}</div>
                                 <h4 className={`font-semibold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                                     {action.title}
