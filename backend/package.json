@@ -18,9 +18,9 @@
     "helmet": "^8.2.0",
     "http-status": "^2.1.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.0.2",
+    "mongoose": "^9.6.3",
     "node": "^24.12.0",
     "nodemon": "^3.1.11",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.2"
   }
 }
