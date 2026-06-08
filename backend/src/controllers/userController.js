@@ -1,7 +1,8 @@
 import httpStatus from "http-status";
 import { User } from "../models/userModel.js";
 import bcrypt from "bcrypt"
-import crypto from "crypto"
+import jwt from "jsonwebtoken"
+import { validationResult } from "express-validator";
 import { Meeting } from "../models/meetingModel.js";
 import { getActiveRooms } from "./socketManager.js";
 
@@ -25,10 +26,12 @@ cleanupOldMeetings();
 setInterval(cleanupOldMeetings, 6 * 60 * 60 * 1000);
 
 const login = async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-        return res.status(400).json({ message: "Please Provide Email and Password." })
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
     }
+
+    const { email, password } = req.body;
 
     try {
         const user = await User.findOne({ email });
@@ -38,11 +41,12 @@ const login = async (req, res) => {
 
         let isPasswordCorrect = await bcrypt.compare(password, user.password)
         if (isPasswordCorrect) {
-            let token = crypto.randomBytes(20).toString("hex");
-
-            user.token = token;
-            await user.save();
-            return res.status(httpStatus.OK).json({ token: token, user: { name: user.name, email: user.email } })
+            const token = jwt.sign(
+                { email: user.email, name: user.name },
+                process.env.JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+            return res.status(httpStatus.OK).json({ token, user: { name: user.name, email: user.email } })
         } else {
             return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid Password. Please Try Again." })
         }
@@ -53,6 +57,11 @@ const login = async (req, res) => {
 }
 
 const signup = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
     const { name, email, password } = req.body;
     try {
         const existingUser = await User.findOne({ email });
@@ -75,26 +84,18 @@ const signup = async (req, res) => {
 }
 
 const getUserHistory = async (req, res) => {
-    const { token } = req.query;
     try {
-        if (!token) {
-            return res.status(400).json({ message: "Token is required" });
-        }
+        const userEmail = req.user.email;
 
-        const user = await User.findOne({ token: token });
-        if (!user) {
-            return res.status(401).json({ message: "Invalid token. Please login again." });
-        }
-        
         // Delete meetings older than 30 days for this user
         const thirtyDaysAgo = new Date(Date.now() - THIRTY_DAYS);
-        await Meeting.deleteMany({ user_id: user.email, date: { $lt: thirtyDaysAgo } });
+        await Meeting.deleteMany({ user_id: userEmail, date: { $lt: thirtyDaysAgo } });
         
         // Get active rooms from socket manager
         const activeRooms = getActiveRooms();
         
         // Fetch meetings and add active status
-        const meetings = await Meeting.find({ user_id: user.email }).sort({ date: -1 });
+        const meetings = await Meeting.find({ user_id: userEmail }).sort({ date: -1 });
         const meetingsWithStatus = meetings.map(meeting => ({
             ...meeting.toObject(),
             isActive: activeRooms.includes(meeting.meetingCode)
@@ -107,19 +108,17 @@ const getUserHistory = async (req, res) => {
 }
 
 const addToHistory = async (req, res) => {
-    const { token, meeting_code } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { meeting_code } = req.body;
     try {
-        if (!token || !meeting_code) {
-            return res.status(400).json({ message: "Token and meeting code are required" });
-        }
-        
-        const user = await User.findOne({ token: token });
-        if (!user) {
-            return res.status(401).json({ message: "Invalid token. Please login again." });
-        }
+        const userEmail = req.user.email;
 
         await Meeting.findOneAndUpdate(
-            { user_id: user.email, meetingCode: meeting_code },
+            { user_id: userEmail, meetingCode: meeting_code },
             { date: new Date() },
             { upsert: true, new: true }
         );
@@ -131,19 +130,18 @@ const addToHistory = async (req, res) => {
 }
 
 const deleteFromHistory = async (req, res) => {
-    const { token, meeting_id } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { meeting_id } = req.body;
     try {
-        if (!token || !meeting_id) {
-            return res.status(400).json({ message: "Token and meeting ID are required" });
-        }
-        const user = await User.findOne({ token: token });
-        if (!user) {
-            return res.status(401).json({ message: "Invalid token. Please login again." });
-        }
+        const userEmail = req.user.email;
         
         const meeting = await Meeting.findOneAndDelete({ 
             _id: meeting_id, 
-            user_id: user.email 
+            user_id: userEmail 
         });
         
         if (!meeting) {

@@ -503,8 +503,9 @@ const VideoCallPage = () => {
             const token = localStorage.getItem('token');
             if (token && meetingCode) {
                 axios.post(`${server_url}/v1/users/history`, {
-                    token: token,
                     meeting_code: meetingCode
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
                 }).catch(err => console.log('Failed to save meeting to history:', err));
             }
 

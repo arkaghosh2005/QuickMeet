@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import { connectToSocket } from "./controllers/socketManager.js";
 import mongoose from "mongoose";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import userRoutes from "./routes/users.routes.js";
 
 const app = express();
@@ -19,6 +20,23 @@ if (!clientUrl) {
     throw new Error("CLIENT_URL environment variable is required!");
 }
 
+// Rate limiters
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5,
+    message: { message: "Too many attempts. Please try again after 15 minutes." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    message: { message: "Too many requests. Please try again later." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 app.set("port", (process.env.PORT));
 app.use(cors({
     origin: clientUrl.split(",").map(url => url.trim()),
@@ -27,14 +45,25 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "40kb" }));
 app.use(express.urlencoded({ limit: "40kb", extended: true }));
+
+// Apply rate limiters
+app.use(generalLimiter);
+app.use("/v1/users/login", authLimiter);
+app.use("/v1/users/signup", authLimiter);
+
 app.use("/v1/users", userRoutes);
 
 const start = async () => {
-    const DB = await mongoose.connect(process.env.MONGO_URL);
-    console.log(`MongoDB Connected`)
-    server.listen(app.get("port"), () => {
-        console.log(`LISTENING ON PORT ${app.get("port")}`);
-    });
+    try {
+        await mongoose.connect(process.env.MONGO_URL);
+        console.log(`MongoDB Connected`);
+        server.listen(app.get("port"), () => {
+            console.log(`LISTENING ON PORT ${app.get("port")}`);
+        });
+    } catch (error) {
+        console.error("Failed to connect to MongoDB:", error.message);
+        process.exit(1);
+    }
 }
 
 start();

@@ -51,7 +51,7 @@ const MeetingHistoryPage = () => {
 
                 const response = await axios.get(
                     `${import.meta.env.VITE_SERVER_URL}/v1/users/history`,
-                    { params: { token } }
+                    { headers: { Authorization: `Bearer ${token}` } }
                 );
                 setMeetings(response.data);
             } catch (e) {
@@ -94,7 +94,10 @@ const MeetingHistoryPage = () => {
         try {
             await axios.delete(
                 `${import.meta.env.VITE_SERVER_URL}/v1/users/history`,
-                { data: { token, meeting_id: meetingId } }
+                { 
+                    data: { meeting_id: meetingId },
+                    headers: { Authorization: `Bearer ${token}` }
+                }
             );
             setMeetings(prev => prev.filter(m => m._id !== meetingId));
         } catch (e) {
