@@ -3,7 +3,7 @@ import Button from "../components/Button";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import io from "socket.io-client";
-import axios from "axios";
+import { apiClient } from "../context/AuthContext";
 import ChatPanel from "../components/ChatPanel";
 import ConfirmModal from "../components/ConfirmModal";
 import SEO from "../components/SEO";
@@ -402,7 +402,7 @@ const VideoCallPage = () => {
                 setSelectedVideoDevice(videoInputs[0].deviceId);
             }
         } catch (e) {
-            console.warn('Failed to enumerate devices:', e);
+            if (import.meta.env.DEV) console.warn('Failed to enumerate devices:', e);
         }
     };
 
@@ -571,11 +571,11 @@ const VideoCallPage = () => {
 
             const token = localStorage.getItem('token');
             if (token && meetingCode) {
-                axios.post(`${server_url}/v1/users/history`, {
+                apiClient.post(`/v1/users/history`, {
                     meeting_code: meetingCode
                 }, {
                     headers: { Authorization: `Bearer ${token}` }
-                }).catch(err => console.log('Failed to save meeting to history:', err));
+                }).catch(err => { if (import.meta.env.DEV) console.log('Failed to save meeting to history:', err); });
             }
 
             window.mySocket = socket;

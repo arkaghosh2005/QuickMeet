@@ -6,7 +6,7 @@ import DarkModeToggle from '../components/DarkModeToggle';
 import SEO from '../components/SEO';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { apiClient } from '../context/AuthContext';
 
 const MeetingHistoryPage = () => {
     const [meetings, setMeetings] = useState([]);
@@ -49,8 +49,8 @@ const MeetingHistoryPage = () => {
                     return;
                 }
 
-                const response = await axios.get(
-                    `${import.meta.env.VITE_SERVER_URL}/v1/users/history`,
+                const response = await apiClient.get(
+                    `/v1/users/history`,
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
                 setMeetings(response.data);
@@ -92,8 +92,8 @@ const MeetingHistoryPage = () => {
 
         setDeletingId(meetingId);
         try {
-            await axios.delete(
-                `${import.meta.env.VITE_SERVER_URL}/v1/users/history`,
+            await apiClient.delete(
+                `/v1/users/history`,
                 { 
                     data: { meeting_id: meetingId },
                     headers: { Authorization: `Bearer ${token}` }

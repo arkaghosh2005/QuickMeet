@@ -1,12 +1,18 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import httpStatus from "http-status";
 
 // Create Context (no types in plain JS)
 export const AuthContext = createContext({});
 
+// Shared Axios instance with base URL
 const client = axios.create({
   baseURL: `${import.meta.env.VITE_SERVER_URL}/v1/users`,
+});
+
+// Standalone API client for use outside AuthProvider (MeetingHistoryPage, VideoCallPage, etc.)
+export const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_SERVER_URL,
 });
 
 export const useAuth = () => {
@@ -23,6 +29,8 @@ export const AuthProvider = ({ children }) => {
   // State
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [sessionToast, setSessionToast] = useState('');
+  const logoutRef = useRef(null);
 
   // Load saved user from localStorage on mount
   useEffect(() => {
@@ -32,6 +40,28 @@ export const AuthProvider = ({ children }) => {
     } else {
       localStorage.removeItem("userData");
     }
+  }, []);
+
+  // Setup Axios 401 interceptor for token expiry
+  useEffect(() => {
+    const interceptor = apiClient.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          setSessionToast("Session expired. Please login again.");
+          setTimeout(() => {
+            setSessionToast('');
+            if (logoutRef.current) logoutRef.current();
+            window.location.href = "/login";
+          }, 2000);
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      apiClient.interceptors.response.eject(interceptor);
+    };
   }, []);
 
   // Signup Handler
@@ -61,7 +91,6 @@ export const AuthProvider = ({ children }) => {
         email: email,
         password: password,
       });
-      console.log(request);
       if (request.status === httpStatus.OK) {
         setUserData(request.data.user);
         localStorage.setItem("userData", JSON.stringify(request.data.user));
@@ -93,6 +122,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Guest check helper
+  const isGuest = userData?.id?.startsWith("guest-") || false;
+
   // Logout Handler
   const logout = () => {
     setUserData(null);
@@ -100,8 +132,21 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
   };
 
-  // Context Data
-  const data = { userData, setUserData, login, signup, loginAsGuest, logout, loading };
+  // Keep logoutRef in sync
+  logoutRef.current = logout;
 
-  return <AuthContext.Provider value={data}>{children}</AuthContext.Provider>;
+  // Context Data
+  const data = { userData, setUserData, login, signup, loginAsGuest, logout, loading, isGuest, sessionToast };
+
+  return (
+    <>
+      <AuthContext.Provider value={data}>{children}</AuthContext.Provider>
+      {/* Session expired toast */}
+      {sessionToast && (
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-lg shadow-2xl z-[200] flex items-center space-x-2 animate-bounce-in">
+          <span className="font-medium">{sessionToast}</span>
+        </div>
+      )}
+    </>
+  );
 };

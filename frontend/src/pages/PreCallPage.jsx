@@ -62,7 +62,7 @@ const PreCallPage = () => {
     const getPermissions = async () => {
         // If browser lacks support, disable everything immediately
         if (!navigator.mediaDevices?.getUserMedia) {
-            console.warn("Media devices not supported.");
+            if (import.meta.env.DEV) console.warn("Media devices not supported.");
             setVideoAvailable(false);
             setAudioAvailable(false);
             setVideo(false);
@@ -110,14 +110,14 @@ const PreCallPage = () => {
                     try {
                         localVideoref.current.srcObject = preview;
                     } catch (e) {
-                        console.warn("Preview assign failed:", e);
+                        if (import.meta.env.DEV) console.warn("Preview assign failed:", e);
                     }
                 }
             } catch (e) {
-                console.warn("Initial preview getUserMedia failed:", e);
+                if (import.meta.env.DEV) console.warn("Initial preview getUserMedia failed:", e);
             }
         } else {
-            console.warn("No camera or microphone permissions available.");
+            if (import.meta.env.DEV) console.warn("No camera or microphone permissions available.");
         }
     };
 
@@ -130,19 +130,19 @@ const PreCallPage = () => {
             try {
                 const src = localVideoref.current?.srcObject;
                 if (src?.getTracks) src.getTracks().forEach(track => track.stop());
-            } catch (e) { console.warn("stop preview failed:", e); }
+            } catch (e) { if (import.meta.env.DEV) console.warn("stop preview failed:", e); }
             return;
         }
 
         if (!navigator.mediaDevices?.getUserMedia) {
-            console.warn("getUserMedia not supported.");
+            if (import.meta.env.DEV) console.warn("getUserMedia not supported.");
             return;
         }
 
         navigator.mediaDevices.getUserMedia({ video: wantVideo, audio: wantAudio })
             .then(getUserMediaSuccess)
             .catch(e => {
-                console.warn("getUserMedia request failed:", e);
+                if (import.meta.env.DEV) console.warn("getUserMedia request failed:", e);
                 // if request fails due to permission, update availability
                 if (wantVideo) { setVideoAvailable(false); setVideo(false); }
                 if (wantAudio) { setAudioAvailable(false); setAudio(false); }
@@ -153,12 +153,12 @@ const PreCallPage = () => {
         // stop previous global stream safely
         try {
             if (window.localStream?.getTracks) window.localStream.getTracks().forEach(track => track.stop());
-        } catch (e) { console.warn(e); }
+        } catch (e) { if (import.meta.env.DEV) console.warn(e); }
 
         // set new stream and show in preview
         window.localStream = userStream;
         if (localVideoref.current?.srcObject !== undefined) {
-            try { localVideoref.current.srcObject = userStream; } catch (e) { console.warn("assign user stream failed:", e); }
+            try { localVideoref.current.srcObject = userStream; } catch (e) { if (import.meta.env.DEV) console.warn("assign user stream failed:", e); }
         }
 
         // when any track ends -> fallback
@@ -170,12 +170,12 @@ const PreCallPage = () => {
                 try {
                     const previewSrc = localVideoref.current?.srcObject;
                     if (previewSrc?.getTracks) previewSrc.getTracks().forEach(tr => tr.stop());
-                } catch (e) { console.warn(e); }
+                } catch (e) { if (import.meta.env.DEV) console.warn(e); }
 
                 const fallback = new MediaStream([black(), silence()]);
                 window.localStream = fallback;
                 if (localVideoref.current?.srcObject !== undefined) {
-                    try { localVideoref.current.srcObject = fallback; } catch (e) { console.warn("assign fallback failed:", e); }
+                    try { localVideoref.current.srcObject = fallback; } catch (e) { if (import.meta.env.DEV) console.warn("assign fallback failed:", e); }
                 }
             };
         });
@@ -203,7 +203,7 @@ const PreCallPage = () => {
                 window.localStream.getTracks().forEach(track => track.stop());
             }
         } catch (e) {
-            console.warn("Failed to stop preview stream:", e);
+            if (import.meta.env.DEV) console.warn("Failed to stop preview stream:", e);
         }
 
         // Check if this user created the meeting

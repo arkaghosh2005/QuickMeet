@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Video, Users, Calendar, ArrowRight, LogOut } from 'lucide-react';
+import { Video, Users, Calendar, ArrowRight, LogOut, UserPlus } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import DarkModeToggle from '../components/DarkModeToggle';
@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 const MeetingEntryPage = () => {
     const [meetingCode, setMeetingCode] = useState('');
     const [error, setError] = useState('');
-    const { userData, logout } = useAuth();
+    const { userData, logout, isGuest } = useAuth();
     const { isDarkMode } = useTheme();
     const navigate = useNavigate();
 
@@ -72,12 +72,12 @@ const MeetingEntryPage = () => {
             description: 'Plan a meeting for later',
             comingSoon: true,
         },
-        {
+        ...(!isGuest ? [{
             icon: <Users className="w-8 h-8 text-orange-600" />,
             title: 'Meeting History',
             description: 'View past meetings',
             onClick: () => navigate('/meeting-history'),
-        },
+        }] : []),
         {
             icon: <Video className="w-8 h-8 text-red-600" />,
             title: 'Settings',
@@ -237,6 +237,21 @@ const MeetingEntryPage = () => {
                         ))}
                     </div>
                 </div>
+
+                {/* Guest sign-up banner */}
+                {isGuest && (
+                    <div className={`mt-8 rounded-xl p-4 flex items-center gap-4 ${isDarkMode ? "bg-blue-900/30 border border-blue-700/50" : "bg-blue-50 border border-blue-200"}`}>
+                        <UserPlus className="w-6 h-6 text-blue-500 flex-shrink-0" />
+                        <div className="flex-1">
+                            <p className={`text-sm font-medium ${isDarkMode ? "text-blue-200" : "text-blue-800"}`}>
+                                Sign up to save your meeting history and access all features
+                            </p>
+                        </div>
+                        <Button size="sm" onClick={() => navigate('/signup')}>
+                            Sign Up
+                        </Button>
+                    </div>
+                )}
             </main>
         </div>
         </>
