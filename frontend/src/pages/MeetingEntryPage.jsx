@@ -72,12 +72,12 @@ const MeetingEntryPage = () => {
             description: 'Plan a meeting for later',
             comingSoon: true,
         },
-        ...(!isGuest ? [{
+        {
             icon: <Users className="w-8 h-8 text-orange-600" />,
             title: 'Meeting History',
             description: 'View past meetings',
             onClick: () => navigate('/meeting-history'),
-        }] : []),
+        },
         {
             icon: <Video className="w-8 h-8 text-red-600" />,
             title: 'Settings',

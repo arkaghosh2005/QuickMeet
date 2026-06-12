@@ -32,14 +32,7 @@ const ValidMeetingRoute = ({ children }) => {
   return <>{children}</>;
 };
 
-// Blocks guest users — redirects to meeting-entry
-const RegisteredOnlyRoute = ({ children }) => {
-  const { userData } = useAuth();
-  if (userData?.id?.startsWith("guest-")) {
-    return <Navigate to="/meeting-entry" replace />;
-  }
-  return <>{children}</>;
-};
+
 
 // App Routes Component
 const AppRoutes = () => {
@@ -80,9 +73,7 @@ const AppRoutes = () => {
           path="/meeting-history"
           element={
             <ProtectedRoute>
-              <RegisteredOnlyRoute>
-                <MeetingHistoryPage />
-              </RegisteredOnlyRoute>
+              <MeetingHistoryPage />
             </ProtectedRoute>
           }
         />
