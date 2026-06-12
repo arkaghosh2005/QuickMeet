@@ -528,14 +528,20 @@ const VideoCallPage = () => {
         if (socketRef.current?.connected) return;
 
         socketRef.current?.disconnect();
+
+        // Build socket auth: JWT token for registered users, name+id for guests
+        const token = localStorage.getItem('token');
+        const savedUser = JSON.parse(localStorage.getItem('userData') || '{}');
+        const socketAuth = token
+            ? { token }
+            : { guestName: savedUser.name, guestId: savedUser.id };
+
         socketRef.current = io.connect(server_url, {
             secure: false,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            auth: {
-                token: localStorage.getItem('token'),
-            },
+            auth: socketAuth,
         });
         socketRef.current.on('signal', gotMessageFromServer);
 

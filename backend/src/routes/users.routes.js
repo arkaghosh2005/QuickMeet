@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { body } from "express-validator";
-import { addToHistory, deleteFromHistory, getUserHistory, login, signup, loginAsGuest } from "../controllers/userController.js";
+import { addToHistory, deleteFromHistory, getUserHistory, login, signup } from "../controllers/userController.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -19,11 +19,6 @@ router.route("/signup").post(
     body("email").isEmail().normalizeEmail().withMessage("Please provide a valid email"),
     body("password").isLength({ min: 8 }).withMessage("Password must be at least 8 characters"),
     signup
-);
-
-router.route("/guest").post(
-    body("name").trim().notEmpty().withMessage("Name is required"),
-    loginAsGuest
 );
 
 // Protected routes

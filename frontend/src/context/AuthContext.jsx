@@ -103,23 +103,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login as Guest Handler
-  const loginAsGuest = async (guestName) => {
-    setLoading(true);
-    try {
-      let request = await client.post("/guest", {
-        name: guestName,
-      });
-      if (request.status === httpStatus.OK) {
-        setUserData(request.data.user);
-        localStorage.setItem("userData", JSON.stringify(request.data.user));
-        localStorage.setItem("token", request.data.token);
-      }
-    } catch (error) {
-      throw new Error(error.response?.data?.message || "Error logging in as Guest");
-    } finally {
-      setLoading(false);
-    }
+  // Login as Guest Handler (fully client-side, no backend call)
+  const loginAsGuest = (guestName) => {
+    const guestId = `guest-${Date.now()}`;
+    const guestUser = { name: guestName, id: guestId };
+    setUserData(guestUser);
+    localStorage.setItem("userData", JSON.stringify(guestUser));
+    // No token stored for guests — socket auth uses guestName + guestId directly
   };
 
   // Guest check helper

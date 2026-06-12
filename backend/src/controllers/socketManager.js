@@ -74,19 +74,32 @@ export const connectToSocket = (server) => {
         }, ROOM_EXPIRY_TIME);
     };
 
-    // Socket.io JWT authentication middleware
+    // Socket.io authentication middleware
+    // Registered users: verify JWT token
+    // Guests: accept name + guestId handshake (no token needed)
     io.use((socket, next) => {
         const token = socket.handshake.auth?.token;
-        if (!token) {
-            return next(new Error("Authentication required"));
+        const guestName = socket.handshake.auth?.guestName;
+        const guestId = socket.handshake.auth?.guestId;
+
+        // Path 1: Registered user with JWT
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                socket.user = decoded;
+                return next();
+            } catch (err) {
+                return next(new Error("Invalid or expired token"));
+            }
         }
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            socket.user = decoded;
-            next();
-        } catch (err) {
-            return next(new Error("Invalid or expired token"));
+
+        // Path 2: Guest with name + guestId
+        if (guestName && guestId) {
+            socket.user = { name: guestName, id: guestId, isGuest: true };
+            return next();
         }
+
+        return next(new Error("Authentication required"));
     });
 
     io.on("connection", (socket) => {

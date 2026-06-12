@@ -64,28 +64,7 @@ const signup = async (req, res) => {
     }
 }
 
-const loginAsGuest = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg });
-    }
 
-    const { name } = req.body;
-    try {
-        const guestId = `guest-${Date.now()}`;
-        const token = jwt.sign(
-            { name, id: guestId, isGuest: true },
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' }
-        );
-        return res.status(httpStatus.OK).json({
-            token,
-            user: { name, id: guestId }
-        });
-    } catch (e) {
-        return res.status(500).json({ message: "Something went Wrong." });
-    }
-}
 
 const getUserHistory = async (req, res) => {
     try {
@@ -154,4 +133,4 @@ const deleteFromHistory = async (req, res) => {
     }
 }
 
-export { login, signup, loginAsGuest, getUserHistory, addToHistory, deleteFromHistory };
+export { login, signup, getUserHistory, addToHistory, deleteFromHistory };
