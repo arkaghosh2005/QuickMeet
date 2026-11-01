@@ -6,12 +6,13 @@
 
 ![React](https://img.shields.io/badge/React-19.2.3-61DAFB?style=for-the-badge&logo=react&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-24.x-339933?style=for-the-badge&logo=node.js&logoColor=white)
-![WebRTC](https://img.shields.io/badge/WebRTC-Enabled-FF6B6B?style=for-the-badge&logo=webrtc&logoColor=white)
+![WebRTC](https://img.shields.io/badge/WebRTC-STUN%20%2B%20TURN-FF6B6B?style=for-the-badge&logo=webrtc&logoColor=white)
 ![Socket.io](https://img.shields.io/badge/Socket.io-4.8.2-010101?style=for-the-badge&logo=socket.io&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.3.6-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-9.x-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5.2.1-000000?style=for-the-badge&logo=express&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-7.3.5-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Vitest](https://img.shields.io/badge/Vitest-Tested-FCC72B?style=for-the-badge&logo=vitest&logoColor=black)
 
 **A fully-featured, responsive video conferencing platform similar to Zoom/Google Meet, built from scratch using modern web technologies with WebRTC peer-to-peer connections.**
 
@@ -23,9 +24,11 @@
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
+- [WebRTC NAT Traversal (STUN & TURN)](#webrtc-infrastructure)
 - [System Architecture](#system-architecture)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
+- [Running Tests](#running-tests)
 - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
 - [Application Flow](#application-flow)
@@ -38,87 +41,82 @@
 
 ## ✨ Features
 
-### 🎥 Core Video Features
+### 🎥 Core Video & Audio
 | Feature | Description |
 |---------|-------------|
-| **Real-time Video Calls** | High-quality peer-to-peer video using WebRTC with multiple STUN servers |
-| **Screen Sharing** | Share entire screen or specific windows with other participants |
-| **Audio/Video Controls** | Toggle camera and microphone on/off during calls with instant sync |
+| **Real-time Video Calls** | Ultra-low latency peer-to-peer video using WebRTC with Google STUN + configurable TURN servers |
+| **Hardware Release Guarantee** | Clean media track disposal (`track.stop()`) on call end, unmount, or tab close — no lingering webcam lights |
+| **Screen Sharing** | Share entire screen or specific application windows with track renegotiation |
+| **Audio/Video Controls** | Toggle camera and microphone on/off during calls with instant peer state synchronization |
 | **Speaker Toggle** | Mute/unmute all incoming audio from remote participants |
-| **Pre-Call Setup** | Preview video, configure display name and AV settings before joining |
-| **Auto Aspect Ratio** | Video preview automatically adjusts to match webcam's native aspect ratio |
+| **Pre-Call Setup** | Preview video, test microphone, configure display name and AV toggles before joining |
+| **Auto Aspect Ratio** | Video preview automatically adjusts to match webcam native aspect ratio |
+| **Connection Status Bar** | Visual indicator for connected, reconnecting, and disconnected states with manual retry |
 
-### ⚙️ Advanced Settings
+### ⚙️ In-Call Settings Panel
 | Feature | Description |
 |---------|-------------|
-| **Settings Panel** | Floating settings panel accessible via gear icon in the control bar |
-| **Camera Selection** | Switch between available cameras during a call |
-| **Microphone Selection** | Switch between available microphones during a call |
-| **Echo Cancellation** | Toggle browser-level echo cancellation for cleaner audio |
-| **Auto Gain Control** | Automatically adjusts microphone input volume |
-| **Noise Suppression** | Filter out background noise from audio input |
-| **Responsive Settings UI** | Settings panel adapts seamlessly to mobile and desktop screens |
+| **Settings Panel** | Accessible via the gear icon in the control bar |
+| **Camera Selection** | Switch dynamically between available system webcams |
+| **Microphone Selection** | Switch dynamically between available microphones |
+| **Echo Cancellation** | Toggle browser-level acoustic echo cancellation |
+| **Auto Gain Control** | Toggle microphone input gain normalization |
+| **Noise Suppression** | Filter out background noise from the microphone feed |
 
-### 👤 User Experience
+### 👤 User Experience & Accessibility
 | Feature | Description |
 |---------|-------------|
-| **Fully Responsive Design** | Adaptive layouts for desktop, tablet, and mobile devices |
-| **Dark/Light Theme** | Toggle themes with persistent localStorage preferences |
-| **User Authentication** | Secure token-based login and registration with bcrypt hashing |
-| **Guest Access** | Join meetings without creating an account |
-| **Custom Display Names** | Set your name for each meeting session |
-| **Meeting Code Copy** | One-click copy meeting code with toast notification |
+| **Smart Code Formatting** | Automatic dash insertion (`AAA-BBBB-CCC`) while typing or pasting meeting codes/URLs |
+| **Enter-Key Quick Join** | Press `Enter` in the meeting code input to join instantly |
+| **Dark/Light Theme** | System and manual dark mode with `dark` class applied to root `<html>` and persisted in `localStorage` |
+| **User Authentication** | Token-based signup & login with bcrypt password hashing and strong password rules |
+| **Guest Access** | Join any meeting instantly as a guest without an account |
+| **One-Click Code Copy** | Copy meeting code or direct pre-call invitation link with toast feedback |
+| **Responsive Design** | Custom adaptive CSS breakpoints supporting desktop, tablet, and mobile |
 
-### 🎮 Meeting Controls
+### 🎮 Meeting Controls & Layout
 | Feature | Description |
 |---------|-------------|
-| **Host Identification** | Visual indicators for meeting host |
-| **Participant Panel** | View all attendees with their audio/video status |
-| **Real-time Chat** | In-meeting text messaging with floating panel design |
-| **Adaptive Grid Layout** | Smart grid that adjusts based on participant count (1-8+) |
-| **Screen Share Priority** | Screen shares get prominent display positioning |
-| **Overflow Indicator** | Shows "+N more" when participants exceed grid capacity |
+| **Host Identification** | Distinct badge for room creator vs participants |
+| **Participant Panel** | Real-time attendee list displaying live microphone, camera, and screen share states |
+| **Real-time Chat** | Floating in-call messaging panel with auto-scroll and unread badge count |
+| **Adaptive Grid Layout** | Dynamic responsive grid accommodating 1 to 8+ participants |
+| **Screen Share Priority** | Screen shares automatically claim primary layout focus |
+| **Participant Overflow** | Displays `+N more` indicator when attendees exceed grid slots |
 
 ### 📜 Meeting History
 | Feature | Description |
 |---------|-------------|
-| **Meeting History Page** | View all past meetings with date, time, and status |
-| **Active Room Detection** | Real-time status showing if a room is "Active" or "Room Closed" |
-| **Rejoin Meetings** | Quick rejoin button for active meetings |
-| **Delete from History** | Remove individual meetings from history |
-| **Auto-Cleanup** | Server automatically deletes meetings older than 30 days |
-| **Duplicate Prevention** | Rejoining same room updates timestamp instead of creating duplicates |
-| **Guest Restriction** | Meeting history only available for registered users |
+| **History Dashboard** | View past meetings with date, timestamp, and active indicator |
+| **Active Room Detection** | Shows real-time badge if a past meeting is currently in progress |
+| **One-Click Rejoin** | Direct rejoin button for active meetings |
+| **Meeting Deletion** | Remove individual meetings from user history |
+| **Auto-Cleanup (TTL)** | MongoDB TTL index automatically cleans entries older than 30 days |
+| **Duplicate Prevention** | Rejoining an existing room updates the timestamp instead of duplicating rows |
 
-### 🔒 Security & Stability
+### 🔒 Security, Reliability & Quality
 | Feature | Description |
 |---------|-------------|
-| **Peer-to-Peer Encryption** | Secure WebRTC connections via STUN servers |
-| **JWT Authentication** | Stateless JSON Web Tokens with 7-day expiry |
-| **Password Hashing** | bcrypt with salt rounds for secure storage |
-| **Rate Limiting** | Auth endpoints (5/15min) and general (100/15min) via express-rate-limit |
-| **Input Validation** | Server-side validation on all endpoints via express-validator |
-| **Back Navigation Block** | Prevents accidental meeting exits via browser back button |
-| **Tab Close Warning** | `beforeunload` prompt prevents accidental tab closure during calls |
-| **Connection Recovery** | Auto-reconnect with visual status bar and manual reconnect fallback |
-| **Leave Confirmation** | Modal dialog before ending a call to prevent accidental disconnects |
-| **Security Headers** | `helmet` middleware sets strict HTTP security headers (CSP, HSTS, X-Frame-Options) |
-| **Graceful Shutdown** | Server handles `SIGTERM`/`SIGINT` to cleanly close connections before exit |
-| **Health Check** | `GET /health` endpoint for uptime monitoring and load balancer probes |
-| **Socket Authentication** | JWT-verified Socket.io connections — unauthenticated sockets are rejected |
+| **WebSocket XSS Sanitization** | Server-side sanitization of user names, chat text, and screen share labels |
+| **Strong Password Policy** | Enforces minimum 8 chars, uppercase, lowercase, numbers, and special characters |
+| **DNS Resilience** | Automatic Google Public DNS (`8.8.8.8`) fallback in Node.js to resolve Atlas SRV lookups on restrictive networks |
+| **Bounded Memory** | Chat messages capped at 500 per room to prevent unbounded server memory growth |
+| **Rate Limiting** | Strict rate limits on authentication endpoints (5 req/15 min) and API (100 req/15 min) |
+| **Input Validation** | Strict `express-validator` rules on all authentication and history endpoints |
+| **Security Headers** | Helmet middleware configured for CSP, HSTS, and X-Frame-Options |
+| **Accidental Leave Prevention** | Browser back navigation trap, beforeunload tab-close warning, and confirmation dialog |
+| **Graceful Shutdown** | Handles `SIGTERM`/`SIGINT` to cleanly close HTTP, WebSockets, and MongoDB connections |
+| **Automated Tests** | Unit & component test suite powered by Vitest and React Testing Library |
+| **Linting & Formatting** | ESLint 9 flat configuration and Prettier formatting |
 
 ### 🔍 SEO & Web Optimization
 | Feature | Description |
 |---------|-------------|
-| **Per-Page Meta Tags** | Dynamic title, description, and canonical URL per route via `react-helmet-async` |
-| **Open Graph Tags** | Rich link previews on Facebook, LinkedIn, and other social platforms |
-| **Twitter Cards** | `summary_large_image` cards with custom OG image |
-| **Structured Data** | JSON-LD schemas (`WebApplication` + `Organization`) for search engine rich results |
-| **Sitemap & Robots.txt** | XML sitemap for crawlable pages; robots.txt blocks private routes |
-| **PWA Manifest** | Web app manifest with icons for installability and app metadata |
-| **404 Page** | Custom not-found page with `noindex` to prevent dead-end indexing |
-| **Accessibility** | `aria-label` on all icon buttons, `role="switch"` on toggles, focus-trapped modals, `prefers-reduced-motion` support |
-| **OG Image Component** | SVG-based Open Graph image component (1200×630) matching brand design |
+| **Per-Page Meta Tags** | Dynamic title, description, and canonical tags via `react-helmet-async` |
+| **Open Graph & Twitter Cards** | Social link previews powered by `og-image.svg` matching brand identity |
+| **JSON-LD Structured Data** | `WebApplication` and `Organization` schemas for rich Google search results |
+| **Sitemap & Robots.txt** | `sitemap.xml` for public pages; `robots.txt` disallows indexing of private rooms |
+| **PWA Manifest & Favicon** | Web app manifest with SVG icons and standalone display capability |
 
 ---
 
@@ -129,47 +127,63 @@
 ### Frontend Technologies
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| React | 19.2.3 | UI Framework with Hooks |
-| React Router DOM | 7.17.0 | Client-side Routing & Navigation |
-| React Helmet Async | 3.0.0 | Per-page SEO Meta Tags |
-| Tailwind CSS | 3.3.6 | Utility-first CSS Styling |
-| Lucide React | 0.562.0 | Modern SVG Icon Library |
-| Socket.io Client | 4.8.1 | Real-time WebSocket Communication |
-| Axios | 1.17.0 | HTTP Client for API Calls |
-| Vite | 7.3.5 | Next-gen Build Tool & Dev Server |
+| React | 19.2.3 | Declarative UI framework with Hooks |
+| React Router DOM | 7.17.0 | Client-side routing and navigation |
+| Vite | 7.3.5 | Modern ESM build tool and development server |
+| Tailwind CSS | 3.3.6 | Utility-first responsive styling with dark mode |
+| Lucide React | 0.562.0 | SVG icon library |
+| Socket.io Client | 4.8.1 | Real-time WebSocket signaling |
+| Axios | 1.17.0 | HTTP client with authentication interceptors |
+| React Helmet Async | 3.0.0 | Per-route SEO metadata management |
+| Vitest | Latest | Next-generation unit test runner |
+| React Testing Library | Latest | Component testing utilities |
 
 ### Backend Technologies
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Node.js | 24.x | JavaScript Runtime |
-| Express.js | 5.2.1 | Web Application Framework |
-| Socket.io | 4.8.2 | WebSocket Server for Signaling |
-| MongoDB | Cloud | NoSQL Database |
-| Mongoose | 9.6.3 | MongoDB ODM |
-| bcrypt | 6.0.0 | Password Hashing |
-| jsonwebtoken | latest | JWT Token Auth |
-| helmet | 8.2.0 | HTTP Security Headers |
-| express-validator | latest | Input Validation |
-| express-rate-limit | latest | Rate Limiting |
-| CORS | 2.8.5 | Cross-Origin Resource Sharing |
+| Node.js | 24.x (>= 18) | JavaScript runtime environment |
+| Express.js | 5.2.1 | HTTP API server framework |
+| Socket.io | 4.8.2 | Real-time WebRTC signaling server |
+| MongoDB Atlas | Cloud | Cloud document database |
+| Mongoose | 9.6.3 | MongoDB Object Data Modeling (ODM) |
+| bcrypt | 6.0.0 | Salted password hashing |
+| jsonwebtoken | 9.0.3 | Stateless JWT token issuance and verification |
+| helmet | 8.2.0 | HTTP security headers middleware |
+| express-validator | 7.3.2 | Request payload validation and sanitization |
+| express-rate-limit | 8.5.2 | IP-based request throttling |
+| CORS | 2.8.5 | Cross-origin resource sharing |
 
-### WebRTC Infrastructure
-| Component | Purpose |
-|-----------|---------|
-| RTCPeerConnection | Peer-to-peer media connections |
-| MediaStream API | Camera, microphone, and screen capture |
-| STUN Servers | NAT traversal for peer discovery |
-| ICE Candidates | Connection establishment |
+---
 
-### ⚠️ Known Limitations — STUN-Only WebRTC
+<a id="webrtc-infrastructure"></a>
 
-The application currently uses **only STUN servers** (Google's public STUN servers) for WebRTC peer connection establishment. **No TURN servers are configured.**
+## 🌐 WebRTC Infrastructure (STUN & TURN)
 
-| Aspect | Detail |
-|--------|--------|
-| **Connection failure rate** | ~15–20% of users behind symmetric NATs, corporate firewalls, or certain mobile networks may fail to connect |
-| **STUN servers used** | `stun:stun.l.google.com:19302` through `stun:stun4.l.google.com:19302` |
-| **To fix for production** | Add a TURN server ([Coturn](https://github.com/coturn/coturn), [Twilio NTS](https://www.twilio.com/docs/stun-turn), or [metered.ca](https://www.metered.ca/tools/openrelay/)) to `peerConfigConnections` in `VideoCallPage.jsx` |
+QuickMeet implements standard WebRTC signaling over Socket.io. For NAT traversal, the platform supports both **STUN** and **TURN** servers:
+
+```
+                  ┌─────────────────────────────────────────┐
+                  │          Signaling (Socket.io)          │
+                  │   Offers, Answers & ICE Candidates      │
+                  └──────────────────┬──────────────────────┘
+                                     │
+                 ┌───────────────────┴───────────────────┐
+                 ▼                                       ▼
+    ┌─────────────────────────┐             ┌─────────────────────────┐
+    │     Peer A (Browser)    │◄── P2P ────►│     Peer B (Browser)    │
+    └────────────┬────────────┘  Media Flow └────────────┬────────────┘
+                 │                                       │
+                 ├────────► STUN (Google) ◄──────────────┤ (Direct P2P via STUN)
+                 │                                       │
+                 └────────► TURN Server   ◄──────────────┘ (Relay for symmetric NATs)
+```
+
+| Traversal Type | Configuration | Behavior |
+|----------------|---------------|----------|
+| **STUN (Default)** | 5 Google STUN servers (`stun.l.google.com:19302` to `stun4`) | Discovers public IP/port for direct peer-to-peer media paths (~80-85% of users). |
+| **TURN (Configured)** | Configured via `VITE_TURN_URL`, `VITE_TURN_USERNAME`, `VITE_TURN_CREDENTIAL` | Relays media packets for users behind restrictive firewalls or symmetric NATs. |
+
+> **Need free TURN credentials?** You can generate free TURN credentials from [metered.ca/tools/openrelay](https://www.metered.ca/tools/openrelay/) or self-host [Coturn](https://github.com/coturn/coturn).
 
 ---
 
@@ -209,24 +223,16 @@ The application currently uses **only STUN servers** (Google's public STUN serve
 │  │  ┌─────────────────────────────────────┐  ┌────────────────────────────────────────────┐ │   │
 │  │  │           AuthContext               │  │              ThemeContext                  │ │   │
 │  │  │  • userData (name, email, token)    │  │  • isDarkMode state                        │ │   │
-│  │  │  • login() / signup() / logout()    │  │  • toggleTheme()                           │ │   │
-│  │  │  • loginAsGuest()                   │  │  • localStorage persistence                │ │   │
-│  │  │  • Token validation                 │  │  • System preference detection             │ │   │
+│  │  │  • login() / signup() / logout()    │  │  • toggleDarkMode()                        │ │   │
+│  │  │  • loginAsGuest()                   │  │  • document.documentElement.classList      │ │   │
+│  │  │  • Session expiry toast             │  │  • localStorage persistence                │ │   │
 │  │  └─────────────────────────────────────┘  └────────────────────────────────────────────┘ │   │
 │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                              REUSABLE COMPONENTS                                         │   │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌───────────────┐ ┌───────────────────────┐  │   │
-│  │  │  Button  │ │  Input   │ │  ChatPanel   │ │ LoadingSpinner│ │  DarkModeToggle /SEO  │  │   │
-│  │  └──────────┘ └──────────┘ └──────────────┘ └───────────────┘ └───────────────────────┘  │   │
-│  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                                 │
 └────────────────────────────────────┬────────────────────────────────┬───────────────────────────┘
                                      │                                │
                     ┌────────────────┴────────────────┐  ┌────────────┴────────────────┐
                     │        Socket.io Client         │  │      Axios HTTP Client      │
-                    │      (Real-time Events)         │  │      (REST API Calls)       │
+                    │      (Real-time Signaling)      │  │      (REST API Calls)       │
                     └────────────────┬────────────────┘  └────────────┬────────────────┘
                                      │                                │
 ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -235,7 +241,7 @@ The application currently uses **only STUN servers** (Google's public STUN serve
                                      │                                │
                     ┌────────────────┴────────────────┐  ┌────────────┴────────────────┐
                     │        Socket.io Server         │  │       Express Router        │
-                    │      (WebSocket Handler)        │  │      (HTTP Endpoints)       │
+                    │      (Signaling & Events)       │  │      (HTTP Endpoints)       │
                     └────────────────┬────────────────┘  └────────────┬────────────────┘
                                      │                                │
 ┌────────────────────────────────────┴────────────────────────────────┴───────────────────────────┐
@@ -244,75 +250,24 @@ The application currently uses **only STUN servers** (Google's public STUN serve
 │                                                                                                 │
 │  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
 │  │                              SOCKET MANAGER (socketManager.js)                           │   │
-│  │                                                                                          │   │
-│  │   EVENTS RECEIVED                          EVENTS EMITTED                                │   │
-│  │   ┌─────────────────────────┐              ┌─────────────────────────────────────────┐   │   │
-│  │   │ • join-call             │              │ • user-joined (broadcast to room)       │   │   │
-│  │   │ • signal (WebRTC SDP)   │              │ • user-left (broadcast to room)         │   │   │
-│  │   │ • chat-message          │              │ • signal (forward to peer)              │   │   │
-│  │   │ • update-media-state    │              │ • chat-message (broadcast)              │   │   │
-│  │   │ • screen-share-toggle   │              │ • user-media-state-changed              │   │   │
-│  │   │ • disconnect            │              │ • user-started-screen-share             │   │   │
-│  │   └─────────────────────────┘              │ • user-stopped-screen-share             │   │   │
-│  │                                            └─────────────────────────────────────────┘   │   │
-│  │   ROOM MANAGEMENT                                                                        │   │
-│  │   ┌─────────────────────────────────────────────────────────────────────────────────┐    │   │
-│  │   │ • socketToRoom{} - Maps socket ID to room URL                                   │    │   │
-│  │   │ • rooms{} - Tracks clients in each room (socketId, userName, userRole, A/V)     │    │   │
-│  │   │ • getActiveRooms() - Returns list of rooms with active participants             │    │   │
-│  │   │ • Room cleanup after 1 hour of inactivity                                       │    │   │
-│  │   └─────────────────────────────────────────────────────────────────────────────────┘    │   │
+│  │  • Sanitized inputs (XSS protection)         • Room cleanup timer (1 hour timeout)       │   │
+│  │  • Bounded message buffer (500 max/room)     • JWT & Guest handshake authentication      │   │
 │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                                 │
 │  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
 │  │                              USER CONTROLLER (userController.js)                         │   │
-│  │                                                                                          │   │
-│  │   ┌─────────────────────────────────────────────────────────────────────────────────┐    │   │
-│  │   │  POST /v1/users/signup     │  Register user (bcrypt hash, crypto token)         │    │   │
-│  │   ├─────────────────────────────────────────────────────────────────────────────────┤    │   │
-│  │   │  POST /v1/users/login      │  Authenticate user, return token + user data       │    │   │
-│  │   ├─────────────────────────────────────────────────────────────────────────────────┤    │   │
-│  │   │  GET  /v1/users/history    │  Get meetings with active room status              │    │   │
-│  │   ├─────────────────────────────────────────────────────────────────────────────────┤    │   │
-│  │   │  POST /v1/users/history    │  Add/Update meeting (upsert - no duplicates)       │    │   │
-│  │   ├─────────────────────────────────────────────────────────────────────────────────┤    │   │
-│  │   │  DELETE /v1/users/history  │  Remove meeting from user's history                │    │   │
-│  │   └─────────────────────────────────────────────────────────────────────────────────┘    │   │
+│  │  • POST /v1/users/signup (409 on duplicate)  • GET /v1/users/history                     │   │
+│  │  • POST /v1/users/login (7-day JWT)          • POST /v1/users/history (upsert)           │   │
+│  │  • DELETE /v1/users/history                  • Sanitized generic 500 error responses     │   │
 │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                              DATABASE & LIFECYCLE                                       │   │
-│  │  ┌───────────────────────────────────┐  ┌─────────────────────────────────────────────┐  │   │
-│  │  │  Meeting TTL Index (30 days)      │  │  Room Cleanup (On disconnect)               │  │   │
-│  │  │  MongoDB auto-deletes old docs    │  │  Remove empty rooms after timeout           │  │   │
-│  │  └───────────────────────────────────┘  └─────────────────────────────────────────────┘  │   │
-│  │  ┌───────────────────────────────────┐  ┌─────────────────────────────────────────────┐  │   │
-│  │  │  GET /health                      │  │  Graceful Shutdown                          │  │   │
-│  │  │  Uptime monitoring endpoint       │  │  SIGTERM/SIGINT → close server → disconnect │  │   │
-│  │  └───────────────────────────────────┘  └─────────────────────────────────────────────┘  │   │
-│  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                                 │
 └────────────────────────────────────────────────────┬────────────────────────────────────────────┘
                                                      │
-                                                     │ Mongoose ODM
-                                                     ▼
-                              ┌─────────────────────────────────────────────┐
-                              │              MongoDB Atlas                  │
-                              │  ┌─────────────────────────────────────┐    │
-                              │  │         Users Collection            │    │
-                              │  │  • _id: ObjectId                    │    │
-                              │  │  • name: String                     │    │
-                              │  │  • email: String (unique)           │    │
-                              │  │  • password: String (bcrypt)        │    │
-                              │  └─────────────────────────────────────┘    │
-                              │  ┌─────────────────────────────────────┐    │
-                              │  │        Meetings Collection          │    │
-                              │  │  • _id: ObjectId                    │    │
-                              │  │  • user_id: String (email)          │    │
-                              │  │  • meetingCode: String              │    │
-                              │  │  • date: Date (auto-updated)        │    │
-                              │  └─────────────────────────────────────┘    │
-                              └─────────────────────────────────────────────┘
+                                                     ▼ Mongoose ODM
+                                      ┌─────────────────────────────┐
+                                      │        MongoDB Atlas        │
+                                      │  • Users Collection         │
+                                      │  • Meetings (30-day TTL)    │
+                                      └─────────────────────────────┘
 ```
 
 ---
@@ -325,69 +280,77 @@ The application currently uses **only STUN servers** (Google's public STUN serve
 quickmeet/
 ├── frontend/                          # React Frontend Application
 │   ├── public/                        # Static assets
+│   │   ├── favicon.svg                # Brand SVG Favicon
 │   │   ├── icon-192.svg               # PWA icon (192x192)
 │   │   ├── icon-512.svg               # PWA icon (512x512)
 │   │   ├── manifest.json              # Web app manifest (PWA)
+│   │   ├── og-image.svg               # Open Graph social preview (1200x630)
 │   │   ├── robots.txt                 # Search engine crawl rules
 │   │   └── sitemap.xml                # XML sitemap for SEO
 │   ├── src/
 │   │   ├── components/                # Reusable UI Components
-│   │   │   ├── Button.jsx             # Custom button with variants
-│   │   │   ├── ChatPanel.jsx          # Floating chat interface
-│   │   │   ├── ConfirmModal.jsx       # Reusable confirmation dialog
-│   │   │   ├── DarkModeToggle.jsx     # Theme switch component
-│   │   │   ├── Input.jsx              # Styled input fields
-│   │   │   ├── LoadingSpinner.jsx     # Loading indicator
-│   │   │   └── SEO.jsx                # Per-page SEO meta tags component
+│   │   │   ├── __tests__/             # Component tests
+│   │   │   │   └── Button.test.jsx    # Button unit tests
+│   │   │   ├── Button.jsx             # Accessible button with variants
+│   │   │   ├── ChatPanel.jsx          # Floating in-call chat
+│   │   │   ├── ConfirmModal.jsx       # Accessible modal dialog
+│   │   │   ├── DarkModeToggle.jsx     # Theme switch with keyboard support
+│   │   │   ├── Input.jsx              # Form input with validation states
+│   │   │   ├── LoadingSpinner.jsx     # Animated CSS spinner
+│   │   │   └── SEO.jsx                # Per-route meta tags
 │   │   │
-│   │   ├── context/                   # React Context Providers
-│   │   │   ├── AuthContext.jsx        # Authentication state & methods
-│   │   │   └── ThemeContext.jsx       # Dark/Light theme management
+│   │   ├── context/                   # Global state providers
+│   │   │   ├── AuthContext.jsx        # JWT & guest authentication
+│   │   │   └── ThemeContext.jsx       # Dark mode state & HTML class toggle
 │   │   │
-│   │   ├── pages/                     # Application Pages
-│   │   │   ├── LandingPage.jsx        # Home page with guest join
-│   │   │   ├── LoginPage.jsx          # User login form
-│   │   │   ├── SignupPage.jsx         # User registration form
-│   │   │   ├── MeetingEntryPage.jsx   # Create/Join meeting interface
-│   │   │   ├── MeetingHistoryPage.jsx # Past meetings with rejoin/delete
+│   │   ├── pages/                     # Application Routes
+│   │   │   ├── __tests__/             # Page logic unit tests
+│   │   │   │   └── MeetingCode.test.js# Code generation & formatting tests
+│   │   │   ├── LandingPage.jsx        # Landing hero & guest join
+│   │   │   ├── LoginPage.jsx          # Login form
+│   │   │   ├── SignupPage.jsx         # Registration with password strength
+│   │   │   ├── MeetingEntryPage.jsx   # Create/Join with auto-dash formatting
+│   │   │   ├── MeetingHistoryPage.jsx # Past meetings list
 │   │   │   ├── NotFoundPage.jsx       # Custom 404 page
-│   │   │   ├── PreCallPage.jsx        # Pre-call setup & preview
-│   │   │   └── VideoCallPage.jsx      # Main video call interface (1000+ lines)
+│   │   │   ├── PreCallPage.jsx        # Hardware preview & setup
+│   │   │   └── VideoCallPage.jsx      # Video conferencing interface
 │   │   │
-│   │   ├── App.jsx                    # Root component with routing
-│   │   ├── main.jsx                   # Application entry point (HelmetProvider)
-│   │   ├── index.css                  # Global styles, Tailwind & reduced-motion
-│   │   └── opengraph-image.jsx        # OG image component (1200×630 SVG)
+│   │   ├── test/                      # Test configuration & setup
+│   │   │   └── setup.js               # Test teardown & cleanup
+│   │   ├── App.jsx                    # Root routing & route guards
+│   │   ├── main.jsx                   # Entry point (HelmetProvider)
+│   │   ├── index.css                  # Tailwind styles & reduced motion
+│   │   └── opengraph-image.jsx        # OG image SVG generator component
 │   │
-│   ├── .env                           # Environment variables
-│   ├── index.html                     # HTML template with full SEO metadata
-│   ├── package.json                   # Frontend dependencies
+│   ├── .env                           # Frontend environment variables
+│   ├── index.html                     # HTML document template with SEO
+│   ├── package.json                   # Dependencies & test scripts
 │   ├── tailwind.config.js             # Tailwind CSS configuration
-│   ├── vite.config.ts                 # Vite build configuration
-│   └── vercel.json                    # Vercel deployment config (SPA rewrites)
+│   ├── vite.config.js                 # Vite build configuration
+│   ├── vitest.config.js               # Vitest testing configuration
+│   └── vercel.json                    # Vercel deployment rewrites
 │
 ├── backend/                           # Node.js Backend Server
 │   ├── src/
 │   │   ├── controllers/
-│   │   │   ├── socketManager.js       # Socket.io event handlers
-│   │   │   └── userController.js      # Auth & user API handlers
-│   │   │
+│   │   │   ├── socketManager.js       # WebSocket signaling & XSS sanitize
+│   │   │   └── userController.js      # Auth & meeting history handlers
 │   │   ├── models/
-│   │   │   ├── userModel.js           # User mongoose schema
-│   │   │   └── meetingModel.js        # Meeting mongoose schema
-│   │   │
+│   │   │   ├── userModel.js           # User Mongoose schema
+│   │   │   └── meetingModel.js        # Meeting schema (30-day TTL index)
 │   │   ├── routes/
-│   │   │   └── users.routes.js        # User API routes
-│   │   │
+│   │   │   └── users.routes.js        # Express routes & express-validator
 │   │   ├── middleware/
 │   │   │   └── auth.js                # JWT authentication middleware
-│   │   │
-│   │   └── app.js                     # Express server entry point
+│   │   └── app.js                     # Express app & DNS fallback setup
 │   │
-│   ├── .env                           # Environment variables
-│   └── package.json                   # Backend dependencies
+│   ├── .env                           # Backend environment variables
+│   └── package.json                   # Backend dependencies & engines
 │
-├── .gitignore                         # Git ignore rules
+├── eslint.config.js                   # ESLint 9 Flat Config (React + Node)
+├── .prettierrc                        # Prettier code formatting rules
+├── .prettierignore                    # Prettier ignore paths
+├── .gitignore                         # Git ignore definitions
 ├── LICENSE                            # MIT License
 └── README.md                          # Project documentation
 ```
@@ -400,82 +363,113 @@ quickmeet/
 
 ### Prerequisites
 
-- Node.js 18+ (recommended: 24.x)
-- MongoDB Atlas account or local MongoDB instance
-- npm package manager
+- **Node.js** >= 18.0.0 (Recommended: 24.x)
+- **MongoDB Atlas** account or a local MongoDB database
+- **npm** package manager
 
-### Installation
+### 1. Clone the repository
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/arkaghosh2005/QuickMeet.git
-   cd quickmeet
-   ```
-
-2. **Install Backend Dependencies**
-   ```bash
-   cd backend
-   npm install
-   ```
-
-3. **Install Frontend Dependencies**
-   ```bash
-   cd ../frontend
-   npm install
-   ```
-
-4. **Configure Environment Variables** (see [Environment Variables](#environment-variables))
-
-5. **Start the Backend Server on Terminal 1**
-   ```bash
-   cd backend
-   node '.\src\app.js'
-   ```
-
-6. **Start the Frontend Development Website on Terminal 2**
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-7. **Open your browser** and navigate to `http://localhost:5173`
-
----
-
-<a id="environment-variables"></a>
-
-## ⚙️ Environment Variables
-
-### Backend (`backend/.env`)
-
-```env
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# MongoDB Connection
-MONGO_URL=mongodb+srv://<username>:<password>@cluster.mongodb.net/quickmeet
-
-# CORS - Allowed Origins
-CLIENT_URL=http://localhost:5173
-
-# JWT Secret (use a strong random string in production)
-JWT_SECRET=your_jwt_secret_key_here
+```bash
+git clone https://github.com/arkaghosh2005/QuickMeet.git
+cd quickmeet
 ```
 
-### Frontend (`frontend/.env`)
+### 2. Configure Environment Variables
 
+Create and configure your `.env` files in both directories:
+
+**Backend (`backend/.env`):**
 ```env
-# Backend Server URL
-VITE_SERVER_URL=http://localhost:8000
+PORT=3000
+NODE_ENV=development
+CLIENT_URL=http://localhost:5173
+MONGO_URL=mongodb+srv://<username>:<password>@cluster.mongodb.net/QuickMeet
+JWT_SECRET=your_super_secret_key_minimum_64_characters_recommended
+```
 
-# STUN Servers for WebRTC (NAT Traversal)
+**Frontend (`frontend/.env`):**
+```env
+VITE_SERVER_URL=http://localhost:3000
 VITE_STUN_URL_1=stun:stun.l.google.com:19302
 VITE_STUN_URL_2=stun:stun1.l.google.com:19302
 VITE_STUN_URL_3=stun:stun2.l.google.com:19302
 VITE_STUN_URL_4=stun:stun3.l.google.com:19302
 VITE_STUN_URL_5=stun:stun4.l.google.com:19302
+
+# Optional TURN server for symmetric NAT traversal
+VITE_TURN_URL=turn:your-turn-server.com:3478
+VITE_TURN_USERNAME=your_username
+VITE_TURN_CREDENTIAL=your_credential
 ```
+
+### 3. Install Dependencies & Start Backend
+
+In your first terminal:
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+The backend starts listening on `http://localhost:3000`.
+
+### 4. Install Dependencies & Start Frontend
+
+In your second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open your browser at `http://localhost:5173`.
+
+---
+
+<a id="running-tests"></a>
+
+## 🧪 Running Tests
+
+QuickMeet includes automated unit and component tests using **Vitest** and **React Testing Library**.
+
+To run the test suite:
+
+```bash
+# Run tests once in terminal
+cd frontend
+npm run test:run
+
+# Run tests in interactive watch mode
+npm test
+```
+
+---
+
+<a id="environment-variables"></a>
+
+## ⚙️ Environment Variables Reference
+
+### Backend (`backend/.env`)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `PORT` | HTTP & WebSocket server port | `3000` |
+| `NODE_ENV` | Environment mode (`development` or `production`) | `development` |
+| `CLIENT_URL` | Allowed CORS origins (comma-separated for multiple) | `http://localhost:5173` |
+| `MONGO_URL` | MongoDB Atlas or local connection string | `mongodb+srv://...` |
+| `JWT_SECRET` | Secret key used to sign and verify JWT tokens | 64+ char random hex |
+
+### Frontend (`frontend/.env`)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `VITE_SERVER_URL` | Base URL of the backend server | `http://localhost:3000` |
+| `VITE_STUN_URL_1`–`5` | Google public STUN server endpoints | `stun:stun.l.google.com:19302` |
+| `VITE_TURN_URL` | *(Optional)* TURN server URI | `turn:openrelay.metered.ca:80` |
+| `VITE_TURN_USERNAME` | *(Optional)* TURN authentication username | `openrelayproject` |
+| `VITE_TURN_CREDENTIAL` | *(Optional)* TURN authentication credential | `openrelayproject` |
 
 ---
 
@@ -486,65 +480,67 @@ VITE_STUN_URL_5=stun:stun4.l.google.com:19302
 ### Authentication Endpoints
 
 #### `POST /v1/users/signup`
-Register a new user account.
+Registers a new user account with strong password verification.
 
 **Request Body:**
 ```json
 {
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "securepassword"
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "Password123!"
 }
 ```
 
-**Response:** `201 Created`
-```json
-{
-  "message": "User has been Registered. Please Login."
-}
-```
+**Responses:**
+- `201 Created` — User registered successfully
+- `400 Bad Request` — Validation error (e.g., password does not meet complexity)
+- `409 Conflict` — User with this email already exists
 
 ---
 
 #### `POST /v1/users/login`
-Authenticate an existing user.
+Authenticates a user and returns a 7-day JWT token.
 
 **Request Body:**
 ```json
 {
-  "email": "john@example.com",
-  "password": "securepassword"
+  "email": "jane@example.com",
+  "password": "Password123!"
 }
 ```
 
-**Response:** `200 OK`
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {
-    "name": "John Doe",
-    "email": "john@example.com"
+**Responses:**
+- `200 OK` — Authentication successful:
+  ```json
+  {
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "user": {
+      "name": "Jane Doe",
+      "email": "jane@example.com"
+    }
   }
-}
-```
-
-> **Note:** The `token` is a JWT (JSON Web Token) valid for 7 days. Include it as `Authorization: Bearer <token>` header in all protected requests.
+  ```
+- `401 Unauthorized` — Invalid password
+- `404 Not Found` — User not found
 
 ---
 
-#### `GET /v1/users/history`
-Get user's meeting history with active room status.
+### Meeting History Endpoints
 
-**Headers:** `Authorization: Bearer <token>`
+All history endpoints require the `Authorization: Bearer <token>` header.
+
+#### `GET /v1/users/history`
+Returns all meetings for the logged-in user with their current active status.
 
 **Response:** `200 OK`
 ```json
 [
   {
     "_id": "64abc123...",
-    "user_id": "john@example.com",
+    "user_id": "jane@example.com",
     "meetingCode": "ABC-1234-XYZ",
-    "date": "2025-12-30T10:00:00.000Z"
+    "date": "2026-11-01T10:00:00.000Z",
+    "isActive": true
   }
 ]
 ```
@@ -552,9 +548,7 @@ Get user's meeting history with active room status.
 ---
 
 #### `POST /v1/users/history`
-Add a meeting to user's history (updates timestamp if meeting already exists).
-
-**Headers:** `Authorization: Bearer <token>`
+Saves or updates a meeting entry in the user's history (upsert).
 
 **Request Body:**
 ```json
@@ -564,18 +558,11 @@ Add a meeting to user's history (updates timestamp if meeting already exists).
 ```
 
 **Response:** `201 Created`
-```json
-{
-  "message": "Meeting added to history"
-}
-```
 
 ---
 
 #### `DELETE /v1/users/history`
-Delete a specific meeting from user's history.
-
-**Headers:** `Authorization: Bearer <token>`
+Deletes a specific meeting record from history.
 
 **Request Body:**
 ```json
@@ -585,9 +572,19 @@ Delete a specific meeting from user's history.
 ```
 
 **Response:** `200 OK`
+
+---
+
+### Monitoring
+
+#### `GET /health`
+Uptime health check endpoint for monitoring probes.
+
+**Response:** `200 OK`
 ```json
 {
-  "message": "Meeting deleted from history"
+  "status": "ok",
+  "uptime": 3600.42
 }
 ```
 
@@ -601,7 +598,7 @@ Delete a specific meeting from user's history.
 Landing Page (Guest Join / Login / Signup)
          │
          ▼
-   Login / Signup
+    Login / Signup
          │
          ▼
   Meeting Entry Page ◄────────────┐
@@ -614,7 +611,7 @@ Landing Page (Guest Join / Login / Signup)
   (Preview & Settings)    (View/Rejoin/Delete)
          │
          ▼
-   Video Call Page
+    Video Call Page
   (Full Meeting Experience)
 ```
 
@@ -641,7 +638,6 @@ Your support helps cover hosting costs, development time, and enables new featur
 
 ## 📄 License
 
-### License
 This project is licensed under the **MIT License** - see the [LICENSE](https://github.com/arkaghosh2005/QuickMeet/blob/main/LICENSE) file for details.
 
 ---
