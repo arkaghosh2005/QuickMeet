@@ -8,6 +8,23 @@ import SEO from '../components/SEO';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
+export const formatMeetingCode = (value) => {
+    if (!value) return '';
+    let str = value.trim();
+    // If a full URL or path is pasted, extract the last segment
+    if (str.includes('/')) {
+        const parts = str.split('/');
+        str = parts[parts.length - 1];
+    }
+    // Keep only alphanumeric characters and limit to 10
+    const raw = str.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+    const parts = [];
+    if (raw.length > 0) parts.push(raw.slice(0, 3));
+    if (raw.length > 3) parts.push(raw.slice(3, 7));
+    if (raw.length > 7) parts.push(raw.slice(7, 10));
+    return parts.join('-');
+};
+
 const MeetingEntryPage = () => {
     const [meetingCode, setMeetingCode] = useState('');
     const [error, setError] = useState('');
@@ -31,9 +48,10 @@ const MeetingEntryPage = () => {
     }, []);
 
     const generateMeetingCode = () => {
-        const randomString = Math.random().toString(36).substr(2, 10).toUpperCase();
-        const formattedCode = randomString.slice(0, 3) + '-' + randomString.slice(3, 7) + '-' + randomString.slice(7);
-        return formattedCode;
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        const bytes = crypto.getRandomValues(new Uint8Array(10));
+        const randomString = Array.from(bytes, b => chars[b % chars.length]).join('');
+        return randomString.slice(0, 3) + '-' + randomString.slice(3, 7) + '-' + randomString.slice(7);
     };
 
     const handleJoinMeeting = () => {
@@ -62,7 +80,9 @@ const MeetingEntryPage = () => {
     };
 
     const handleMeetingCodeChange = (event) => {
-        setMeetingCode(event.target.value.toUpperCase());
+        const formatted = formatMeetingCode(event.target.value);
+        setMeetingCode(formatted);
+        if (error) setError('');
     };
 
     const quickActions = [
@@ -81,179 +101,170 @@ const MeetingEntryPage = () => {
         {
             icon: <Video className="w-8 h-8 text-red-600" />,
             title: 'Settings',
-            description: 'Configure preferences',
-            comingSoon: true,
+            description: 'Audio & video settings available in-call',
+            onClick: () => handleStartNewMeeting(),
         },
     ];
 
     return (
         <>
-        <SEO
-            title="Meeting Dashboard"
-            description="Start a new video meeting or join an existing one. Create rooms, view meeting history, and manage your QuickMeet experience."
-            path="/meeting-entry"
-            noIndex={true}
-        />
-        <div className={`min-h-screen ${isDarkMode
-            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-            : "bg-gradient-to-br from-blue-50 via-white to-green-50"
-            } animate-fadeInUp`}>
-            {/* Header */}
-            <header className={`${isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white"} shadow-sm border-b`}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center space-x-2">
-                            <Video className="w-8 h-8 text-blue-600" />
-                            <span className={`text-xl font-bold ${isDarkMode ? "text-white" : "text-gray-900"}`}>
-                                QuickMeet
-                            </span>
-                        </div>
+            <SEO
+                title="Meeting Dashboard"
+                description="Start a new video meeting or join an existing one. Create rooms, view meeting history, and manage your QuickMeet experience."
+                path="/meeting-entry"
+                noIndex={true}
+            />
+            <div className={`min-h-screen ${isDarkMode
+                ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+                : "bg-gradient-to-br from-blue-50 via-white to-green-50"
+                } animate-fadeInUp`}>
+                {/* Header */}
+                <header className={`${isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white"} shadow-sm border-b`}>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between items-center h-16">
+                            <div className="flex items-center space-x-2">
+                                <Video className="w-8 h-8 text-blue-600" />
+                                <span className={`text-xl font-bold ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                                    QuickMeet
+                                </span>
+                            </div>
 
-                        <div className="flex items-center space-x-4">
-                            <DarkModeToggle />
-                            <span className={`hidden sm:inline ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                                Welcome, <strong>{userData?.name}</strong>
-                            </span>
-                            <Button
-                                variant="ghost"
-                                onClick={handleLogout}
-                                className={`flex items-center space-x-2 ${isDarkMode ? "text-gray-300 hover:bg-gray-700" : ""}`}
-                            >
-                                <LogOut className="w-5 h-5" />
-                                <span className="hidden xs:inline">Sign Out</span>
-                            </Button>
+                            <div className="flex items-center space-x-4">
+                                <DarkModeToggle />
+                                <span className={`hidden sm:inline ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                                    Welcome, <strong>{userData?.name}</strong>
+                                </span>
+                                <Button
+                                    variant="ghost"
+                                    onClick={handleLogout}
+                                    className={`flex items-center space-x-2 ${isDarkMode ? "text-gray-300 hover:bg-gray-700" : ""}`}
+                                >
+                                    <LogOut className="w-5 h-5" />
+                                    <span className="hidden xs:inline">Sign Out</span>
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </header>
+                </header>
 
-            {/* Main Content */}
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <div className="text-center mb-12">
-                    <h1 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
-                        Ready to connect?
-                    </h1>
-                    <p className={`text-xl ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
-                        Start a new meeting or join an existing one
-                    </p>
-                </div>
+                {/* Main Content */}
+                <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                    <div className="text-center mb-12">
+                        <h1 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                            Ready to connect?
+                        </h1>
+                        <p className={`text-xl ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
+                            Start a new meeting or join an existing one
+                        </p>
+                    </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Join Meeting */}
-                    <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"} rounded-2xl shadow-xl p-8`}>
-                        <div className="text-center mb-6">
-                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? "bg-gray-700" : "bg-blue-100"
-                                }`}>
-                                <Users className="w-8 h-8 text-blue-600" />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Join Meeting */}
+                        <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"} rounded-2xl shadow-xl p-8`}>
+                            <div className="text-center mb-6">
+                                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? "bg-gray-700" : "bg-blue-100"
+                                    }`}>
+                                    <Users className="w-8 h-8 text-blue-600" />
+                                </div>
+                                <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                                    Join a Meeting
+                                </h2>
+                                <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                    Enter a meeting code to join an existing meeting
+                                </p>
                             </div>
-                            <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
-                                Join a Meeting
-                            </h2>
-                            <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
-                                Enter a meeting code to join an existing meeting
-                            </p>
+
+                            <div className="space-y-4">
+                                <Input
+                                    type="text"
+                                    placeholder="ABC-1234-XYZ"
+                                    value={meetingCode}
+                                    onChange={handleMeetingCodeChange}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleJoinMeeting();
+                                        }
+                                    }}
+                                    maxLength={12}
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    className={`w-full px-4 py-2 border rounded-lg text-center text-lg font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode
+                                        ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                                        : "bg-white border-gray-300 text-gray-900"
+                                        }`}
+                                />
+                                {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+                                <Button onClick={handleJoinMeeting} className="w-full" size="lg">
+                                    Join Meeting
+                                    <ArrowRight className="w-5 h-5 ml-2" />
+                                </Button>
+                            </div>
                         </div>
 
-                        <div className="space-y-4">
-                            <Input
-                                type="text"
-                                placeholder="Enter Meeting Code"
-                                value={meetingCode}
-                                onChange={handleMeetingCodeChange}
-                                className={`w-full px-4 py-2 border rounded-lg text-center text-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode
-                                    ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                                    : "bg-white border-gray-300 text-gray-900"
-                                    }`}
-                            />
-                            {error && <p className="text-red-600 text-sm text-center">{error}</p>}
-                            <Button onClick={handleJoinMeeting} className="w-full" size="lg">
-                                Join Meeting
+                        {/* Start New Meeting */}
+                        <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"} rounded-2xl shadow-xl p-8`}>
+                            <div className="text-center mb-6">
+                                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? "bg-gray-700" : "bg-green-100"
+                                    }`}>
+                                    <Video className="w-8 h-8 text-green-600" />
+                                </div>
+                                <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                                    Start New Meeting
+                                </h2>
+                                <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                    Create a new meeting room and invite others
+                                </p>
+                            </div>
+
+                            <Button
+                                onClick={handleStartNewMeeting}
+                                variant="secondary"
+                                className="w-full"
+                                size="lg"
+                            >
+                                Start Meeting Now
                                 <ArrowRight className="w-5 h-5 ml-2" />
                             </Button>
                         </div>
                     </div>
 
-                    {/* Start New Meeting */}
-                    <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"} rounded-2xl shadow-xl p-8`}>
-                        <div className="text-center mb-6">
-                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? "bg-gray-700" : "bg-green-100"
-                                }`}>
-                                <Video className="w-8 h-8 text-green-600" />
-                            </div>
-                            <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
-                                Start New Meeting
-                            </h2>
-                            <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
-                                Create a new meeting room and invite others
-                            </p>
+                    {/* Quick Actions */}
+                    <div className="mt-12">
+                        <h3 className={`text-2xl font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                            Quick Actions
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {quickActions.map((action, index) => (
+                                <div
+                                    key={index}
+                                    onClick={action.comingSoon ? undefined : action.onClick}
+                                    className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"
+                                        } rounded-xl p-6 shadow-lg transition-shadow relative ${action.comingSoon
+                                            ? 'opacity-60 cursor-not-allowed'
+                                            : action.onClick
+                                                ? 'hover:shadow-xl hover:scale-105 transition-transform cursor-pointer'
+                                                : 'opacity-75 cursor-pointer'
+                                        }`}
+                                >
+                                    {action.comingSoon && (
+                                        <span className={`absolute top-3 right-3 text-xs font-semibold px-2 py-0.5 rounded-full ${isDarkMode ? "bg-purple-500/20 text-purple-300 border border-purple-500/30" : "bg-purple-100 text-purple-700"
+                                            }`}>
+                                            Coming Soon
+                                        </span>
+                                    )}
+                                    <div className="mb-3">{action.icon}</div>
+                                    <h4 className={`font-semibold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                                        {action.title}
+                                    </h4>
+                                    <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+                                        {action.description}
+                                    </p>
+                                </div>
+                            ))}
                         </div>
-
-                        <Button
-                            onClick={handleStartNewMeeting}
-                            variant="secondary"
-                            className="w-full"
-                            size="lg"
-                        >
-                            Start Meeting Now
-                            <ArrowRight className="w-5 h-5 ml-2" />
-                        </Button>
                     </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="mt-12">
-                    <h3 className={`text-2xl font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
-                        Quick Actions
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {quickActions.map((action, index) => (
-                            <div
-                                key={index}
-                                onClick={action.comingSoon ? undefined : action.onClick}
-                                className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"
-                                    } rounded-xl p-6 shadow-lg transition-shadow relative ${
-                                    action.comingSoon
-                                        ? 'opacity-60 cursor-not-allowed'
-                                        : action.onClick
-                                            ? 'hover:shadow-xl hover:scale-105 transition-transform cursor-pointer'
-                                            : 'opacity-75 cursor-pointer'
-                                    }`}
-                            >
-                                {action.comingSoon && (
-                                    <span className={`absolute top-3 right-3 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                        isDarkMode ? "bg-purple-500/20 text-purple-300 border border-purple-500/30" : "bg-purple-100 text-purple-700"
-                                    }`}>
-                                        Coming Soon
-                                    </span>
-                                )}
-                                <div className="mb-3">{action.icon}</div>
-                                <h4 className={`font-semibold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
-                                    {action.title}
-                                </h4>
-                                <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-                                    {action.description}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Guest sign-up banner */}
-                {isGuest && (
-                    <div className={`mt-8 rounded-xl p-4 flex items-center gap-4 ${isDarkMode ? "bg-blue-900/30 border border-blue-700/50" : "bg-blue-50 border border-blue-200"}`}>
-                        <UserPlus className="w-6 h-6 text-blue-500 flex-shrink-0" />
-                        <div className="flex-1">
-                            <p className={`text-sm font-medium ${isDarkMode ? "text-blue-200" : "text-blue-800"}`}>
-                                Sign up to save your meeting history and access all features
-                            </p>
-                        </div>
-                        <Button size="sm" onClick={() => navigate('/signup')}>
-                            Sign Up
-                        </Button>
-                    </div>
-                )}
-            </main>
-        </div>
+                </main>
+            </div>
         </>
     );
 };
