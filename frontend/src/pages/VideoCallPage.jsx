@@ -1,7 +1,7 @@
 import { Video, VideoOff, Mic, Mic2, MicOff, Camera, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus, Settings, Link2, WifiOff, Loader2 } from "lucide-react";
 import Button from "../components/Button";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 import { apiClient } from "../context/AuthContext";
 import ChatPanel from "../components/ChatPanel";
@@ -10,14 +10,20 @@ import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
 
 const server_url = import.meta.env.VITE_SERVER_URL;
-var connections = {};
+let connections = {};
 const peerConfigConnections = {
     "iceServers": [
         { "urls": import.meta.env.VITE_STUN_URL_1 },
         { "urls": import.meta.env.VITE_STUN_URL_2 },
         { "urls": import.meta.env.VITE_STUN_URL_3 },
         { "urls": import.meta.env.VITE_STUN_URL_4 },
-        { "urls": import.meta.env.VITE_STUN_URL_5 }
+        { "urls": import.meta.env.VITE_STUN_URL_5 },
+        // TURN server for users behind symmetric NATs/firewalls
+        ...(import.meta.env.VITE_TURN_URL ? [{
+            urls: import.meta.env.VITE_TURN_URL,
+            username: import.meta.env.VITE_TURN_USERNAME,
+            credential: import.meta.env.VITE_TURN_CREDENTIAL,
+        }] : [])
     ]
 }
 
@@ -25,11 +31,15 @@ const VideoCallPage = () => {
     const { meetingCode } = useParams();
     const { userData } = useAuth();
     const location = useLocation();
-    let socketRef = useRef();
-    let localVideoRef = useRef();
-    let screenVideoRef = useRef();
-    let clientsRef = useRef([]);
-    let peerCameraTracksRef = useRef({});
+    const navigate = useNavigate();
+    const socketRef = useRef();
+    const localVideoRef = useRef();
+    const screenVideoRef = useRef();
+    const clientsRef = useRef([]);
+    const peerCameraTracksRef = useRef({});
+    const localStreamRef = useRef(null);
+    const screenStreamRef = useRef(null);
+    const isCallActiveRef = useRef(true);
 
     // Get initial state from PreCallPage
     const initialState = location.state || {
@@ -40,17 +50,17 @@ const VideoCallPage = () => {
     };
 
     // Device Permissions
-    let [videoAvailable, setVideoAvailable] = useState(true);
-    let [audioAvailable, setAudioAvailable] = useState(true);
-    let [screenAvailable, setScreenAvailable] = useState(true);
+    const [videoAvailable, setVideoAvailable] = useState(true);
+    const [audioAvailable, setAudioAvailable] = useState(true);
+    const [screenAvailable, setScreenAvailable] = useState(true);
 
     // User Toggles - Use local state, not initialState
-    let [video, setVideo] = useState(initialState.video);
-    let [audio, setAudio] = useState(initialState.audio);
-    let [isSpeakerOn, setIsSpeakerOn] = useState(true);
+    const [video, setVideo] = useState(initialState.video);
+    const [audio, setAudio] = useState(initialState.audio);
+    const [isSpeakerOn, setIsSpeakerOn] = useState(true);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
-    let [screenShare, setScreenShare] = useState(false);
+    const [screenShare, setScreenShare] = useState(false);
 
     // Audio Settings
     const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -66,12 +76,12 @@ const VideoCallPage = () => {
 
     // UI States and Chat
     const [toastMessage, setToastMessage] = useState('');
-    let [messages, setMessages] = useState([]);
-    let [newMessages, setNewMessages] = useState(0);
+    const [messages, setMessages] = useState([]);
+    const [newMessages, setNewMessages] = useState(0);
 
     // Remote Participants and Screen Shares
-    let [videos, setVideos] = useState([]);
-    let [screenShares, setScreenShares] = useState([]);
+    const [videos, setVideos] = useState([]);
+    const [screenShares, setScreenShares] = useState([]);
 
     // Real participants data - Dynamically tracked from socket
     const [participants, setParticipants] = useState([]);
@@ -86,6 +96,7 @@ const VideoCallPage = () => {
 
     // Connection status
     const [connectionStatus, setConnectionStatus] = useState('connected');
+    const [isJoining, setIsJoining] = useState(true);
 
 
     useEffect(() => {
@@ -119,9 +130,10 @@ const VideoCallPage = () => {
         };
     }, []);
 
-    // Warn before closing tab during active call
+    // Warn before closing tab during active call and stop streams if closed
     useEffect(() => {
         const handleBeforeUnload = (e) => {
+            stopAllMediaStreams();
             e.preventDefault();
             e.returnValue = '';
         };
@@ -241,11 +253,48 @@ const VideoCallPage = () => {
         };
     }, [screenShare, screenShares, participants, initialState.displayName]);
 
+    const stopAllMediaStreams = () => {
+        isCallActiveRef.current = false;
+
+        // Stop all local camera and microphone tracks
+        if (localStreamRef.current) {
+            try {
+                localStreamRef.current.getTracks().forEach(track => {
+                    track.stop();
+                });
+            } catch (e) { /* ignore */ }
+            localStreamRef.current = null;
+        }
+
+        // Stop screen sharing tracks
+        if (screenStreamRef.current) {
+            try {
+                screenStreamRef.current.getTracks().forEach(track => {
+                    track.stop();
+                });
+            } catch (e) { /* ignore */ }
+            screenStreamRef.current = null;
+        }
+
+        // Release hardware references from video elements
+        if (localVideoRef.current) {
+            localVideoRef.current.srcObject = null;
+        }
+        if (screenVideoRef.current) {
+            screenVideoRef.current.srcObject = null;
+        }
+    };
+
     // Initialize permissions and socket on mount
     useEffect(() => {
+        isCallActiveRef.current = true;
         getPermissions();
 
         return () => {
+            stopAllMediaStreams();
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            Object.values(connections).forEach(pc => pc.close());
+            connections = {};
             if (socketRef.current) {
                 socketRef.current.disconnect();
             }
@@ -254,20 +303,23 @@ const VideoCallPage = () => {
 
     // Sync local stream to video element when it becomes available
     useEffect(() => {
-        if (localVideoRef.current && window.localStream) {
-            if (localVideoRef.current.srcObject !== window.localStream) {
-                localVideoRef.current.srcObject = window.localStream;
+        if (localVideoRef.current && localStreamRef.current) {
+            if (localVideoRef.current.srcObject !== localStreamRef.current) {
+                localVideoRef.current.srcObject = localStreamRef.current;
             }
         }
     }, [participants]);
 
     let silence = () => {
-        let ctx = new AudioContext()
-        let oscillator = ctx.createOscillator()
-        let dst = oscillator.connect(ctx.createMediaStreamDestination())
+        const ctx = new AudioContext()
+        const oscillator = ctx.createOscillator()
+        const dst = oscillator.connect(ctx.createMediaStreamDestination())
         oscillator.start()
         ctx.resume()
-        return Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
+        const track = Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
+        // Close the AudioContext after extracting the track to prevent resource leaks
+        ctx.close().catch(() => { })
+        return track
     }
 
     let black = ({ width = 640, height = 480 } = {}) => {
@@ -290,9 +342,14 @@ const VideoCallPage = () => {
     }
 
     let getDisplayMediaSuccess = (stream) => {
+        if (!isCallActiveRef.current) {
+            stream.getTracks().forEach(t => t.stop());
+            return;
+        }
+
         // Stop existing & store new
-        window.screenStream?.getTracks()?.forEach(t => t.stop());
-        window.screenStream = stream;
+        screenStreamRef.current?.getTracks()?.forEach(t => t.stop());
+        screenStreamRef.current = stream;
         if (screenVideoRef.current) screenVideoRef.current.srcObject = stream;
 
         const screenTrack = stream.getVideoTracks()[0];
@@ -316,7 +373,7 @@ const VideoCallPage = () => {
         // Handle stop (via browser UI or track end)
         const onEnded = () => {
             setScreenShare(false);
-            window.screenStream = null;
+            screenStreamRef.current = null;
             socketRef.current?.emit('screen-share-toggle', false);
         };
         stream.getTracks().forEach(t => t.onended = onEnded);
@@ -362,24 +419,6 @@ const VideoCallPage = () => {
         if (!videoOk) setVideo(false);
         if (!audioOk) setAudio(false);
         setScreenAvailable(!!navigator.mediaDevices?.getDisplayMedia);
-
-        // Get initial preview stream if any device is available
-        if (videoOk || audioOk) {
-            try {
-                const preview = await navigator.mediaDevices.getUserMedia({
-                    video: videoOk && video,
-                    audio: audioOk && audio ? {
-                        echoCancellation,
-                        autoGainControl,
-                        noiseSuppression,
-                    } : false,
-                });
-                window.localStream = preview;
-                if (localVideoRef.current) {
-                    localVideoRef.current.srcObject = preview;
-                }
-            } catch { /* Ignore preview errors */ }
-        }
 
         connectToSocketServer();
     };
@@ -427,8 +466,8 @@ const VideoCallPage = () => {
         const wantAudio = !!(audio && audioAvailable);
 
         if (!wantVideo && !wantAudio) {
-            window.localStream?.getVideoTracks().forEach(t => t.enabled = false);
-            window.localStream?.getAudioTracks().forEach(t => t.enabled = false);
+            localStreamRef.current?.getVideoTracks().forEach(t => t.enabled = false);
+            localStreamRef.current?.getAudioTracks().forEach(t => t.enabled = false);
             return;
         }
 
@@ -456,12 +495,17 @@ const VideoCallPage = () => {
     };
 
     let getUserMediaSuccess = (stream) => {
-        window.localStream?.getTracks().forEach(t => t.stop());
-        window.localStream = stream;
+        if (!isCallActiveRef.current) {
+            stream.getTracks().forEach(t => t.stop());
+            return;
+        }
+
+        localStreamRef.current?.getTracks().forEach(t => t.stop());
+        localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
         const myId = socketRef.current?.id;
-        const screenTrack = window.screenStream?.getVideoTracks()[0];
+        const screenTrack = screenStreamRef.current?.getVideoTracks()[0];
 
         // Replace tracks in existing peer connections
         Object.entries(connections).forEach(([peerId, pc]) => {
@@ -537,7 +581,7 @@ const VideoCallPage = () => {
             : { guestName: savedUser.name, guestId: savedUser.id };
 
         socketRef.current = io.connect(server_url, {
-            secure: false,
+            secure: window.location.protocol === "https:",
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
@@ -623,6 +667,7 @@ const VideoCallPage = () => {
             });
 
             socket.on('user-joined', (id, clients) => {
+                setIsJoining(false);
                 clientsRef.current = clients;
 
                 // Update participants list
@@ -717,14 +762,14 @@ const VideoCallPage = () => {
                     };
 
                     // Add local tracks (create black+silence if no stream)
-                    if (!window.localStream) {
-                        window.localStream = new MediaStream([black(), silence()]);
+                    if (!localStreamRef.current) {
+                        localStreamRef.current = new MediaStream([black(), silence()]);
                     }
-                    window.localStream.getTracks().forEach(t => pc.addTrack(t, window.localStream));
+                    localStreamRef.current.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current));
 
                     // Add screen track if sharing
-                    const screenTrack = window.screenStream?.getVideoTracks()[0];
-                    if (screenTrack) pc.addTrack(screenTrack, window.screenStream);
+                    const screenTrack = screenStreamRef.current?.getVideoTracks()[0];
+                    if (screenTrack) pc.addTrack(screenTrack, screenStreamRef.current);
                 });
 
                 // If I just joined, send offers to all peers
@@ -743,14 +788,14 @@ const VideoCallPage = () => {
 
     const toggleVideo = () => {
         const newVideo = !video;
-        window.localStream?.getVideoTracks().forEach(t => t.enabled = newVideo);
+        localStreamRef.current?.getVideoTracks().forEach(t => t.enabled = newVideo);
         setVideo(newVideo);
         socketRef.current?.emit('update-media-state', { video: newVideo, audio });
     };
 
     const toggleAudio = () => {
         const newAudio = !audio;
-        window.localStream?.getAudioTracks().forEach(t => t.enabled = newAudio);
+        localStreamRef.current?.getAudioTracks().forEach(t => t.enabled = newAudio);
         setAudio(newAudio);
         socketRef.current?.emit('update-media-state', { video, audio: newAudio });
     };
@@ -762,7 +807,7 @@ const VideoCallPage = () => {
         }
 
         // Stop sharing - remove screen track from all peers
-        const screenTrack = window.screenStream?.getVideoTracks()[0];
+        const screenTrack = screenStreamRef.current?.getVideoTracks()[0];
         Object.entries(connections).forEach(([peerId, pc]) => {
             if (peerId === socketRef.current?.id) return;
             const sender = pc.getSenders().find(s => s.track === screenTrack);
@@ -770,9 +815,9 @@ const VideoCallPage = () => {
         });
 
         // Cleanup
-        window.screenStream?.getTracks().forEach(t => t.stop());
+        screenStreamRef.current?.getTracks().forEach(t => t.stop());
         if (screenVideoRef.current) screenVideoRef.current.srcObject = null;
-        window.screenStream = null;
+        screenStreamRef.current = null;
         setScreenShare(false);
         socketRef.current?.emit('screen-share-toggle', false);
     };
@@ -805,12 +850,11 @@ const VideoCallPage = () => {
     };
 
     const handleEndCall = () => {
+        // Stop all media tracks immediately
+        stopAllMediaStreams();
+
         // Clear timer
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-
-        // Stop all media tracks
-        window.localStream?.getTracks().forEach(t => t.stop());
-        window.screenStream?.getTracks().forEach(t => t.stop());
 
         // Close all peer connections
         Object.values(connections).forEach(pc => pc.close());
@@ -819,16 +863,7 @@ const VideoCallPage = () => {
         // Disconnect socket
         socketRef.current?.disconnect();
 
-        // Reset all states
-        setVideo(false);
-        setAudio(false);
-        setScreenShare(false);
-        setIsChatOpen(false);
-        setIsParticipantsOpen(false);
-        setNewMessages(0);
-        setMessages([]);
-
-        window.location.href = "/";
+        navigate("/");
     };
 
     const addMessage = (data, sender, socketIdSender) => {
@@ -927,533 +962,540 @@ const VideoCallPage = () => {
 
     return (
         <>
-        <SEO
-            title={`Meeting - ${meetingCode}`}
-            description="You're in a QuickMeet video call. Enjoy HD video, screen sharing, and real-time chat."
-            path={`/${meetingCode}`}
-            noIndex={true}
-        />
-        <div className="h-screen bg-gray-900 flex flex-col">
-            {/* Header */}
-            <header className="bg-gray-800 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <h1 className="text-white font-semibold">Meeting</h1>
-                    <span className="text-gray-400 text-sm font-mono bg-gray-700/50 px-2 py-0.5 rounded hidden sm:inline">
-                        {elapsedTime}
-                    </span>
+            <SEO
+                title={`Meeting - ${meetingCode}`}
+                description="You're in a QuickMeet video call. Enjoy HD video, screen sharing, and real-time chat."
+                path={`/${meetingCode}`}
+                noIndex={true}
+            />
+            <div className="h-screen bg-gray-900 flex flex-col">
+                {/* Loading overlay while connecting */}
+                {isJoining && (
+                    <div className="absolute inset-0 z-50 bg-gray-900 flex flex-col items-center justify-center">
+                        <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+                        <p className="text-white text-lg font-medium">Joining meeting...</p>
+                        <p className="text-gray-400 text-sm mt-2">Setting up your connection</p>
+                    </div>
+                )}
+                {/* Header */}
+                <header className="bg-gray-800 px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <h1 className="text-white font-semibold">Meeting</h1>
+                        <span className="text-gray-400 text-sm font-mono bg-gray-700/50 px-2 py-0.5 rounded hidden sm:inline">
+                            {elapsedTime}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                            <span className="text-gray-300 text-sm font-mono">
+                                {meetingCode}
+                            </span>
+                            <Button
+                                onClick={copyMeetingCode}
+                                variant="primary"
+                                size="sm"
+                                aria-label="Copy meeting code"
+                                className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
+                            >
+                                <Copy className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                onClick={copyMeetingLink}
+                                variant="primary"
+                                size="sm"
+                                aria-label="Copy meeting invite link"
+                                className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
+                                title="Copy meeting invite link"
+                            >
+                                <Link2 className="w-4 h-4" />
+                            </Button>
+                        </div>
+                    </div>
+
                     <div className="flex items-center space-x-2">
-                        <span className="text-gray-300 text-sm font-mono">
-                            {meetingCode}
+                        <span className="text-gray-300 text-sm">
+                            {participantCount} {participantText}
                         </span>
                         <Button
-                            onClick={copyMeetingCode}
+                            onClick={toggleParticipants}
                             variant="primary"
                             size="sm"
-                            aria-label="Copy meeting code"
+                            aria-label="Toggle participants panel"
                             className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                         >
-                            <Copy className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            onClick={copyMeetingLink}
-                            variant="primary"
-                            size="sm"
-                            aria-label="Copy meeting invite link"
-                            className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
-                            title="Copy meeting invite link"
-                        >
-                            <Link2 className="w-4 h-4" />
+                            <Users className="w-4 h-4" />
                         </Button>
                     </div>
-                </div>
+                </header>
 
-                <div className="flex items-center space-x-2">
-                    <span className="text-gray-300 text-sm">
-                        {participantCount} {participantText}
-                    </span>
-                    <Button
-                        onClick={toggleParticipants}
-                        variant="primary"
-                        size="sm"
-                        aria-label="Toggle participants panel"
-                        className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
-                    >
-                        <Users className="w-4 h-4" />
-                    </Button>
-                </div>
-            </header>
-
-            {/* Connection Status Bar */}
-            {connectionStatus !== 'connected' && (
-                <div className={`px-4 py-2 flex items-center justify-center space-x-2 text-sm font-medium ${
-                    connectionStatus === 'reconnecting'
-                        ? 'bg-yellow-600/90 text-white'
-                        : 'bg-red-600/90 text-white'
-                }`}>
-                    {connectionStatus === 'reconnecting' ? (
-                        <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Reconnecting...</span>
-                        </>
-                    ) : (
-                        <>
-                            <WifiOff className="w-4 h-4" />
-                            <span>Connection lost</span>
-                            <button
-                                onClick={handleManualReconnect}
-                                className="ml-2 px-3 py-1 text-sm border border-white/30 rounded hover:bg-white/10 transition-colors"
-                            >
-                                Reconnect
-                            </button>
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* Toast Notification */}
-            {toastMessage && (
-                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg shadow-2xl z-50 flex items-center space-x-2 transition-all duration-300 ease-in-out animate-bounce-in">
-                    <div className="bg-white rounded-full p-1">
-                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
-                    <span className="font-medium">{toastMessage}</span>
-                </div>
-            )}
-
-            {/* Main Content */}
-            <div className="flex-1 flex overflow-hidden">
-                <div className={`flex-1 relative`}>
-                    <div className="h-full p-4 pb-20 md:pb-24 overflow-y-auto md:overflow-hidden">
-                        <div className={`${getGridClasses()} min-h-full md:h-full`}>
-                            {/* Render Screen Shares First */}
-                            {layoutData.screenShares.map((share, index) => (
-                                <div
-                                    key={`screen-${share.id}-${index}`}
-                                    className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${layoutData.screenShareCount === 1
-                                        ? "lg:col-span-3 lg:row-span-2"
-                                        : layoutData.screenShareCount === 2 && index < 2
-                                            ? "lg:col-span-3"
-                                            : ""
-                                        }`}
+                {/* Connection Status Bar */}
+                {connectionStatus !== 'connected' && (
+                    <div className={`px-4 py-2 flex items-center justify-center space-x-2 text-sm font-medium ${connectionStatus === 'reconnecting'
+                            ? 'bg-yellow-600/90 text-white'
+                            : 'bg-red-600/90 text-white'
+                        }`}>
+                        {connectionStatus === 'reconnecting' ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Reconnecting...</span>
+                            </>
+                        ) : (
+                            <>
+                                <WifiOff className="w-4 h-4" />
+                                <span>Connection lost</span>
+                                <button
+                                    onClick={handleManualReconnect}
+                                    className="ml-2 px-3 py-1 text-sm border border-white/30 rounded hover:bg-white/10 transition-colors"
                                 >
-                                    {share.isMyScreen ? (
-                                        <video
-                                            ref={screenVideoRef}
-                                            autoPlay
-                                            muted
-                                            playsInline
-                                            className="w-full h-full object-contain bg-black"
-                                        />
-                                    ) : (
-                                        <video
-                                            autoPlay
-                                            playsInline
-                                            ref={(videoElement) => {
-                                                if (videoElement && share.stream && videoElement.srcObject !== share.stream) {
-                                                    videoElement.srcObject = share.stream;
-                                                }
-                                            }}
-                                            className="w-full h-full object-contain bg-black"
-                                        />
-                                    )}
+                                    Reconnect
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
 
-                                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-3 py-1 rounded text-sm flex items-center gap-2">
-                                        <Monitor className="w-4 h-4" />
-                                        {share.name}'s Screen
+                {/* Toast Notification */}
+                {toastMessage && (
+                    <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg shadow-2xl z-50 flex items-center space-x-2 transition-all duration-300 ease-in-out animate-bounce-in">
+                        <div className="bg-white rounded-full p-1">
+                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <span className="font-medium">{toastMessage}</span>
+                    </div>
+                )}
+
+                {/* Main Content */}
+                <div className="flex-1 flex overflow-hidden">
+                    <div className={`flex-1 relative`}>
+                        <div className="h-full p-4 pb-20 md:pb-24 overflow-y-auto md:overflow-hidden">
+                            <div className={`${getGridClasses()} min-h-full md:h-full`}>
+                                {/* Render Screen Shares First */}
+                                {layoutData.screenShares.map((share, index) => (
+                                    <div
+                                        key={`screen-${share.id}-${index}`}
+                                        className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${layoutData.screenShareCount === 1
+                                            ? "lg:col-span-3 lg:row-span-2"
+                                            : layoutData.screenShareCount === 2 && index < 2
+                                                ? "lg:col-span-3"
+                                                : ""
+                                            }`}
+                                    >
+                                        {share.isMyScreen ? (
+                                            <video
+                                                ref={screenVideoRef}
+                                                autoPlay
+                                                muted
+                                                playsInline
+                                                className="w-full h-full object-contain bg-black"
+                                            />
+                                        ) : (
+                                            <video
+                                                autoPlay
+                                                playsInline
+                                                ref={(videoElement) => {
+                                                    if (videoElement && share.stream && videoElement.srcObject !== share.stream) {
+                                                        videoElement.srcObject = share.stream;
+                                                    }
+                                                }}
+                                                className="w-full h-full object-contain bg-black"
+                                            />
+                                        )}
+
+                                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-3 py-1 rounded text-sm flex items-center gap-2">
+                                            <Monitor className="w-4 h-4" />
+                                            {share.name}'s Screen
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
 
-                            {/* Render Video ON Participants */}
-                            {layoutData.visibleVideoOnParticipants.map((participant) => (
-                                <div
-                                    key={`participant-on-${participant.id}`}
-                                    className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
-                                >
-                                    {participant.video ? (
-                                        getParticipantVideoElement(participant)
-                                    ) : (
+                                {/* Render Video ON Participants */}
+                                {layoutData.visibleVideoOnParticipants.map((participant) => (
+                                    <div
+                                        key={`participant-on-${participant.id}`}
+                                        className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
+                                    >
+                                        {participant.video ? (
+                                            getParticipantVideoElement(participant)
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
+                                                <div className="w-24 h-24 bg-gray-600 rounded-full flex items-center justify-center">
+                                                    <span className="text-2xl font-bold text-white">
+                                                        {getInitials(participant.name)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                                            {participant.name}
+                                            {participant.isMe && " (You)"}
+                                            {participant.isHost && (
+                                                <span className="ml-1 text-xs text-blue-400">
+                                                    (Host)
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {!participant.audio && (
+                                            <div className="absolute top-2 right-2 bg-red-600 rounded-full p-1.5">
+                                                <MicOff className="w-4 h-4 text-white" />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Render Video OFF Participants */}
+                                {layoutData.visibleVideoOffParticipants.map((participant) => (
+                                    <div
+                                        key={`participant-off-${participant.id}`}
+                                        className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
+                                    >
                                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
-                                            <div className="w-24 h-24 bg-gray-600 rounded-full flex items-center justify-center">
+                                            <div className="w-20 h-20 bg-gray-600 rounded-full flex items-center justify-center">
                                                 <span className="text-2xl font-bold text-white">
                                                     {getInitials(participant.name)}
                                                 </span>
                                             </div>
                                         </div>
-                                    )}
 
-                                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                                        {participant.name}
-                                        {participant.isMe && " (You)"}
-                                        {participant.isHost && (
-                                            <span className="ml-1 text-xs text-blue-400">
-                                                (Host)
-                                            </span>
+                                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                                            {participant.name}
+                                            {participant.isHost && (
+                                                <span className="ml-1 text-xs text-blue-400">
+                                                    (Host)
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {!participant.audio && (
+                                            <div className="absolute top-2 right-2 bg-red-600 rounded-full p-1.5">
+                                                <MicOff className="w-4 h-4 text-white" />
+                                            </div>
                                         )}
                                     </div>
+                                ))}
 
-                                    {!participant.audio && (
-                                        <div className="absolute top-2 right-2 bg-red-600 rounded-full p-1.5">
-                                            <MicOff className="w-4 h-4 text-white" />
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-
-                            {/* Render Video OFF Participants */}
-                            {layoutData.visibleVideoOffParticipants.map((participant) => (
-                                <div
-                                    key={`participant-off-${participant.id}`}
-                                    className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
-                                >
-                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
-                                        <div className="w-20 h-20 bg-gray-600 rounded-full flex items-center justify-center">
-                                            <span className="text-2xl font-bold text-white">
-                                                {getInitials(participant.name)}
+                                {/* Overflow Indicator */}
+                                {layoutData.showOverflow && (
+                                    <div
+                                        key="overflow-indicator"
+                                        onClick={toggleParticipants}
+                                        className={`relative bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
+                                    >
+                                        <div className="w-full h-full flex flex-col items-center justify-center">
+                                            <UserPlus className="w-12 h-12 text-gray-400 mb-3" />
+                                            <span className="text-4xl font-bold text-white mb-2">
+                                                +{layoutData.overflowCount}
+                                            </span>
+                                            <span className="text-sm text-gray-300">
+                                                More Participants
                                             </span>
                                         </div>
                                     </div>
+                                )}
+                            </div>
+                        </div>
 
-                                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                                        {participant.name}
-                                        {participant.isHost && (
-                                            <span className="ml-1 text-xs text-blue-400">
-                                                (Host)
-                                            </span>
-                                        )}
-                                    </div>
+                        {/* Controls */}
+                        <div className="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 md:space-x-4 bg-gray-800 rounded-full px-3 py-2 md:px-6 md:py-3 shadow-2xl z-20 max-w-[95vw]">
+                            <Button
+                                onClick={toggleAudio}
+                                variant={audio ? "ghost" : "danger"}
+                                aria-label={audio ? "Mute microphone" : "Unmute microphone"}
+                                className={`rounded-full p-2 md:p-3 ${audio ? "hover:bg-gray-700" : ""}`}
+                            >
+                                {audio ? (
+                                    <Mic className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                ) : (
+                                    <MicOff className="w-4 h-4 md:w-5 md:h-5" />
+                                )}
+                            </Button>
 
-                                    {!participant.audio && (
-                                        <div className="absolute top-2 right-2 bg-red-600 rounded-full p-1.5">
-                                            <MicOff className="w-4 h-4 text-white" />
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                            <Button
+                                onClick={toggleVideo}
+                                variant={video ? "ghost" : "danger"}
+                                aria-label={video ? "Turn off camera" : "Turn on camera"}
+                                className={`rounded-full p-2 md:p-3 ${video ? "hover:bg-gray-700" : ""}`}
+                            >
+                                {video ? (
+                                    <Video className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                ) : (
+                                    <VideoOff className="w-4 h-4 md:w-5 md:h-5" />
+                                )}
+                            </Button>
 
-                            {/* Overflow Indicator */}
-                            {layoutData.showOverflow && (
-                                <div
-                                    key="overflow-indicator"
-                                    onClick={toggleParticipants}
-                                    className={`relative bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
-                                >
-                                    <div className="w-full h-full flex flex-col items-center justify-center">
-                                        <UserPlus className="w-12 h-12 text-gray-400 mb-3" />
-                                        <span className="text-4xl font-bold text-white mb-2">
-                                            +{layoutData.overflowCount}
-                                        </span>
-                                        <span className="text-sm text-gray-300">
-                                            More Participants
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
+                            <Button
+                                onClick={toggleSpeaker}
+                                variant={isSpeakerOn ? "ghost" : "danger"}
+                                aria-label={isSpeakerOn ? "Mute speaker" : "Unmute speaker"}
+                                className="rounded-full p-2 md:p-3 hover:bg-gray-700">
+                                {isSpeakerOn ? (
+                                    <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                ) : (
+                                    <VolumeX className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                )}
+                            </Button>
+
+                            <Button
+                                onClick={toggleScreenShare}
+                                variant={screenShare ? "danger" : "ghost"}
+                                aria-label={screenShare ? "Stop screen sharing" : "Share screen"}
+                                className="rounded-full p-2 md:p-3 hover:bg-gray-700 hidden sm:flex">
+                                {screenShare ? (
+                                    <MonitorOff className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                ) : (
+                                    <Monitor className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                )}
+                            </Button>
+
+                            <Button
+                                onClick={toggleChat}
+                                variant={isChatOpen ? "danger" : "ghost"}
+                                aria-label={isChatOpen ? "Close chat" : "Open chat"}
+                                className="rounded-full p-2 md:p-3 hover:bg-gray-700 relative">
+                                <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                {newMessages > 0 && !isChatOpen && (
+                                    <span className="absolute top-0 right-0 md:top-1 md:right-1 w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full"></span>
+                                )}
+                            </Button>
+
+                            <Button
+                                onClick={toggleMore}
+                                variant={isMoreOpen ? "danger" : "ghost"}
+                                aria-label={isMoreOpen ? "Close settings" : "Open settings"}
+                                className="rounded-full p-2 md:p-3 hover:bg-gray-700">
+                                <Settings className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                            </Button>
+
+                            <Button
+                                onClick={() => setShowLeaveConfirm(true)}
+                                variant="danger"
+                                aria-label="Leave meeting"
+                                className="rounded-full p-2 md:p-3">
+                                <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
+                            </Button>
                         </div>
                     </div>
 
-                    {/* Controls */}
-                    <div className="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 md:space-x-4 bg-gray-800 rounded-full px-3 py-2 md:px-6 md:py-3 shadow-2xl z-20 max-w-[95vw]">
-                        <Button
-                            onClick={toggleAudio}
-                            variant={audio ? "ghost" : "danger"}
-                            aria-label={audio ? "Mute microphone" : "Unmute microphone"}
-                            className={`rounded-full p-2 md:p-3 ${audio ? "hover:bg-gray-700" : ""}`}
-                        >
-                            {audio ? (
-                                <Mic className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                            ) : (
-                                <MicOff className="w-4 h-4 md:w-5 md:h-5" />
-                            )}
-                        </Button>
-
-                        <Button
-                            onClick={toggleVideo}
-                            variant={video ? "ghost" : "danger"}
-                            aria-label={video ? "Turn off camera" : "Turn on camera"}
-                            className={`rounded-full p-2 md:p-3 ${video ? "hover:bg-gray-700" : ""}`}
-                        >
-                            {video ? (
-                                <Video className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                            ) : (
-                                <VideoOff className="w-4 h-4 md:w-5 md:h-5" />
-                            )}
-                        </Button>
-
-                        <Button
-                            onClick={toggleSpeaker}
-                            variant={isSpeakerOn ? "ghost" : "danger"}
-                            aria-label={isSpeakerOn ? "Mute speaker" : "Unmute speaker"}
-                            className="rounded-full p-2 md:p-3 hover:bg-gray-700">
-                            {isSpeakerOn ? (
-                                <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                            ) : (
-                                <VolumeX className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                            )}
-                        </Button>
-
-                        <Button
-                            onClick={toggleScreenShare}
-                            variant={screenShare ? "danger" : "ghost"}
-                            aria-label={screenShare ? "Stop screen sharing" : "Share screen"}
-                            className="rounded-full p-2 md:p-3 hover:bg-gray-700 hidden sm:flex">
-                            {screenShare ? (
-                                <MonitorOff className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                            ) : (
-                                <Monitor className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                            )}
-                        </Button>
-
-                        <Button
-                            onClick={toggleChat}
-                            variant={isChatOpen ? "danger" : "ghost"}
-                            aria-label={isChatOpen ? "Close chat" : "Open chat"}
-                            className="rounded-full p-2 md:p-3 hover:bg-gray-700 relative">
-                            <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                            {newMessages > 0 && !isChatOpen && (
-                                <span className="absolute top-0 right-0 md:top-1 md:right-1 w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full"></span>
-                            )}
-                        </Button>
-
-                        <Button
-                            onClick={toggleMore}
-                            variant={isMoreOpen ? "danger" : "ghost"}
-                            aria-label={isMoreOpen ? "Close settings" : "Open settings"}
-                            className="rounded-full p-2 md:p-3 hover:bg-gray-700">
-                            <Settings className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                        </Button>
-
-                        <Button
-                            onClick={() => setShowLeaveConfirm(true)}
-                            variant="danger"
-                            aria-label="Leave meeting"
-                            className="rounded-full p-2 md:p-3">
-                            <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
-                        </Button>
-                    </div>
+                    {/* Floating Chat Panel - Works on both mobile and desktop */}
+                    {isChatOpen && (
+                        <div className="fixed inset-4 md:inset-auto md:right-4 md:bottom-24 md:top-20 md:w-96 z-50 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
+                            <ChatPanel
+                                isOpen={true}
+                                onClose={() => setIsChatOpen(false)}
+                                messages={messages}
+                                onSendMessage={handleSendMessage}
+                                currentUserName={initialState.displayName}
+                            />
+                        </div>
+                    )}
                 </div>
 
-                {/* Floating Chat Panel - Works on both mobile and desktop */}
-                {isChatOpen && (
-                    <div className="fixed inset-4 md:inset-auto md:right-4 md:bottom-24 md:top-20 md:w-96 z-50 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
-                        <ChatPanel
-                            isOpen={true}
-                            onClose={() => setIsChatOpen(false)}
-                            messages={messages}
-                            onSendMessage={handleSendMessage}
-                            currentUserName={initialState.displayName}
-                        />
+                {/* Participants Panel */}
+                {isParticipantsOpen && (
+                    <div className="fixed right-4 top-16 w-64 bg-white rounded-lg shadow-2xl z-50 max-h-96 overflow-y-auto">
+                        <div className="p-4 border-b border-gray-200">
+                            <h3 className="font-semibold text-gray-900">
+                                Participants ({participantCount})
+                            </h3>
+                        </div>
+
+                        <div className="p-2">
+                            {participants.map((participant) => (
+                                <div
+                                    key={`panel-${participant.id}`}
+                                    className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                        <span className="text-sm font-bold text-white">
+                                            {getInitials(participant.name)}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-gray-900">
+                                            {participant.name}
+                                            {participant.isMe && " (You)"}
+                                            {participant.isHost && (
+                                                <span className="text-xs text-blue-600 ml-1">
+                                                    (Host)
+                                                </span>
+                                            )}
+                                        </p>
+                                    </div>
+
+                                    <div className="flex space-x-1">
+                                        {!participant.audio && (
+                                            <MicOff className="w-4 h-4 text-red-500" />
+                                        )}
+                                        {!participant.video && (
+                                            <VideoOff className="w-4 h-4 text-gray-500" />
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
-            </div>
 
-            {/* Participants Panel */}
-            {isParticipantsOpen && (
-                <div className="fixed right-4 top-16 w-64 bg-white rounded-lg shadow-2xl z-50 max-h-96 overflow-y-auto">
-                    <div className="p-4 border-b border-gray-200">
-                        <h3 className="font-semibold text-gray-900">
-                            Participants ({participantCount})
-                        </h3>
-                    </div>
+                {/* More Settings Panel */}
+                {isMoreOpen && (
+                    <div className="fixed left-1/2 transform -translate-x-1/2 bottom-24 md:bottom-28 w-[calc(100%-2rem)] sm:w-80 max-w-sm bg-gray-800 rounded-lg shadow-2xl z-50 border border-gray-700 max-h-[70vh] overflow-y-auto">
+                        <div className="p-3 sm:p-4 border-b border-gray-700">
+                            <h3 className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
+                                <Settings className="w-4 h-4" />
+                                Settings
+                            </h3>
+                        </div>
 
-                    <div className="p-2">
-                        {participants.map((participant) => (
-                            <div
-                                key={`panel-${participant.id}`}
-                                className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
-                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                                    <span className="text-sm font-bold text-white">
-                                        {getInitials(participant.name)}
-                                    </span>
-                                </div>
+                        <div className="p-3 sm:p-4 space-y-4 sm:space-y-5">
+                            {/* Device Selection Section */}
+                            <div className="space-y-2 sm:space-y-3">
+                                <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">Device Selection</p>
 
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-gray-900">
-                                        {participant.name}
-                                        {participant.isMe && " (You)"}
-                                        {participant.isHost && (
-                                            <span className="text-xs text-blue-600 ml-1">
-                                                (Host)
-                                            </span>
+                                {/* Camera Selection */}
+                                <div className="space-y-1 sm:space-y-1.5">
+                                    <label className="text-xs sm:text-sm font-medium text-white flex items-center gap-2">
+                                        <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 flex-shrink-0" />
+                                        <span className="truncate">Camera</span>
+                                    </label>
+                                    <select
+                                        value={selectedVideoDevice}
+                                        onChange={(e) => handleVideoDeviceChange(e.target.value)}
+                                        className="w-full bg-gray-700 text-white text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20viewBox%3d%220%200%2024%2024%22%20fill%3d%22none%22%20stroke%3d%22white%22%20stroke-width%3d%222%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%3e%3cpolyline%20points%3d%226%209%2012%2015%2018%209%22%3e%3c%2fpolyline%3e%3c%2fsvg%3e')] bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat pr-8"
+                                        title={videoDevices.find(d => d.deviceId === selectedVideoDevice)?.label || 'Select camera'}
+                                    >
+                                        {videoDevices.length === 0 ? (
+                                            <option value="">No cameras found</option>
+                                        ) : (
+                                            videoDevices.map((device, index) => {
+                                                const label = device.label || `Camera ${index + 1}`;
+                                                // Truncate long labels for better display
+                                                const displayLabel = label.length > 35 ? label.substring(0, 32) + '...' : label;
+                                                return (
+                                                    <option key={device.deviceId} value={device.deviceId} title={label}>
+                                                        {displayLabel}
+                                                    </option>
+                                                );
+                                            })
                                         )}
-                                    </p>
+                                    </select>
                                 </div>
 
-                                <div className="flex space-x-1">
-                                    {!participant.audio && (
-                                        <MicOff className="w-4 h-4 text-red-500" />
-                                    )}
-                                    {!participant.video && (
-                                        <VideoOff className="w-4 h-4 text-gray-500" />
-                                    )}
+                                {/* Microphone Selection */}
+                                <div className="space-y-1 sm:space-y-1.5">
+                                    <label className="text-xs sm:text-sm font-medium text-white flex items-center gap-2">
+                                        <Mic2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400 flex-shrink-0" />
+                                        <span className="truncate">Microphone</span>
+                                    </label>
+                                    <select
+                                        value={selectedAudioDevice}
+                                        onChange={(e) => handleAudioDeviceChange(e.target.value)}
+                                        className="w-full bg-gray-700 text-white text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20viewBox%3d%220%200%2024%2024%22%20fill%3d%22none%22%20stroke%3d%22white%22%20stroke-width%3d%222%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%3e%3cpolyline%20points%3d%226%209%2012%2015%2018%209%22%3e%3c%2fpolyline%3e%3c%2fsvg%3e')] bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat pr-8"
+                                        title={audioDevices.find(d => d.deviceId === selectedAudioDevice)?.label || 'Select microphone'}
+                                    >
+                                        {audioDevices.length === 0 ? (
+                                            <option value="">No microphones found</option>
+                                        ) : (
+                                            audioDevices.map((device, index) => {
+                                                const label = device.label || `Microphone ${index + 1}`;
+                                                // Truncate long labels for better display
+                                                const displayLabel = label.length > 35 ? label.substring(0, 32) + '...' : label;
+                                                return (
+                                                    <option key={device.deviceId} value={device.deviceId} title={label}>
+                                                        {displayLabel}
+                                                    </option>
+                                                );
+                                            })
+                                        )}
+                                    </select>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            )}
 
-            {/* More Settings Panel */}
-            {isMoreOpen && (
-                <div className="fixed left-1/2 transform -translate-x-1/2 bottom-24 md:bottom-28 w-[calc(100%-2rem)] sm:w-80 max-w-sm bg-gray-800 rounded-lg shadow-2xl z-50 border border-gray-700 max-h-[70vh] overflow-y-auto">
-                    <div className="p-3 sm:p-4 border-b border-gray-700">
-                        <h3 className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
-                            <Settings className="w-4 h-4" />
-                            Settings
-                        </h3>
-                    </div>
+                            {/* Divider */}
+                            <div className="border-t border-gray-700"></div>
 
-                    <div className="p-3 sm:p-4 space-y-4 sm:space-y-5">
-                        {/* Device Selection Section */}
-                        <div className="space-y-2 sm:space-y-3">
-                            <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">Device Selection</p>
+                            {/* Audio Processing Section */}
+                            <div className="space-y-2 sm:space-y-3">
+                                <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">Audio Processing</p>
 
-                            {/* Camera Selection */}
-                            <div className="space-y-1 sm:space-y-1.5">
-                                <label className="text-xs sm:text-sm font-medium text-white flex items-center gap-2">
-                                    <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 flex-shrink-0" />
-                                    <span className="truncate">Camera</span>
-                                </label>
-                                <select
-                                    value={selectedVideoDevice}
-                                    onChange={(e) => handleVideoDeviceChange(e.target.value)}
-                                    className="w-full bg-gray-700 text-white text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20viewBox%3d%220%200%2024%2024%22%20fill%3d%22none%22%20stroke%3d%22white%22%20stroke-width%3d%222%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%3e%3cpolyline%20points%3d%226%209%2012%2015%2018%209%22%3e%3c%2fpolyline%3e%3c%2fsvg%3e')] bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat pr-8"
-                                    title={videoDevices.find(d => d.deviceId === selectedVideoDevice)?.label || 'Select camera'}
-                                >
-                                    {videoDevices.length === 0 ? (
-                                        <option value="">No cameras found</option>
-                                    ) : (
-                                        videoDevices.map((device, index) => {
-                                            const label = device.label || `Camera ${index + 1}`;
-                                            // Truncate long labels for better display
-                                            const displayLabel = label.length > 35 ? label.substring(0, 32) + '...' : label;
-                                            return (
-                                                <option key={device.deviceId} value={device.deviceId} title={label}>
-                                                    {displayLabel}
-                                                </option>
-                                            );
-                                        })
-                                    )}
-                                </select>
-                            </div>
-
-                            {/* Microphone Selection */}
-                            <div className="space-y-1 sm:space-y-1.5">
-                                <label className="text-xs sm:text-sm font-medium text-white flex items-center gap-2">
-                                    <Mic2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400 flex-shrink-0" />
-                                    <span className="truncate">Microphone</span>
-                                </label>
-                                <select
-                                    value={selectedAudioDevice}
-                                    onChange={(e) => handleAudioDeviceChange(e.target.value)}
-                                    className="w-full bg-gray-700 text-white text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20viewBox%3d%220%200%2024%2024%22%20fill%3d%22none%22%20stroke%3d%22white%22%20stroke-width%3d%222%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%3e%3cpolyline%20points%3d%226%209%2012%2015%2018%209%22%3e%3c%2fpolyline%3e%3c%2fsvg%3e')] bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat pr-8"
-                                    title={audioDevices.find(d => d.deviceId === selectedAudioDevice)?.label || 'Select microphone'}
-                                >
-                                    {audioDevices.length === 0 ? (
-                                        <option value="">No microphones found</option>
-                                    ) : (
-                                        audioDevices.map((device, index) => {
-                                            const label = device.label || `Microphone ${index + 1}`;
-                                            // Truncate long labels for better display
-                                            const displayLabel = label.length > 35 ? label.substring(0, 32) + '...' : label;
-                                            return (
-                                                <option key={device.deviceId} value={device.deviceId} title={label}>
-                                                    {displayLabel}
-                                                </option>
-                                            );
-                                        })
-                                    )}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Divider */}
-                        <div className="border-t border-gray-700"></div>
-
-                        {/* Audio Processing Section */}
-                        <div className="space-y-2 sm:space-y-3">
-                            <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">Audio Processing</p>
-
-                            {/* Echo Cancellation */}
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-xs sm:text-sm font-medium text-white truncate">Echo Cancellation</p>
-                                    <p className="text-[10px] sm:text-xs text-gray-400 truncate">Remove echo from audio</p>
-                                </div>
-                                <button
-                                    onClick={() => setEchoCancellation(!echoCancellation)}
-                                    role="switch"
-                                    aria-checked={echoCancellation}
-                                    aria-label="Echo Cancellation"
-                                    className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${echoCancellation ? 'bg-blue-600' : 'bg-gray-600'
-                                        }`}
-                                >
-                                    <span
-                                        className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${echoCancellation ? 'translate-x-5' : 'translate-x-0'
+                                {/* Echo Cancellation */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs sm:text-sm font-medium text-white truncate">Echo Cancellation</p>
+                                        <p className="text-[10px] sm:text-xs text-gray-400 truncate">Remove echo from audio</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setEchoCancellation(!echoCancellation)}
+                                        role="switch"
+                                        aria-checked={echoCancellation}
+                                        aria-label="Echo Cancellation"
+                                        className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${echoCancellation ? 'bg-blue-600' : 'bg-gray-600'
                                             }`}
-                                    />
-                                </button>
-                            </div>
-
-                            {/* Auto Gain Control */}
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-xs sm:text-sm font-medium text-white truncate">Auto Gain Control</p>
-                                    <p className="text-[10px] sm:text-xs text-gray-400 truncate">Auto-adjust mic volume</p>
+                                    >
+                                        <span
+                                            className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${echoCancellation ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                        />
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => setAutoGainControl(!autoGainControl)}
-                                    role="switch"
-                                    aria-checked={autoGainControl}
-                                    aria-label="Auto Gain Control"
-                                    className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${autoGainControl ? 'bg-blue-600' : 'bg-gray-600'
-                                        }`}
-                                >
-                                    <span
-                                        className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${autoGainControl ? 'translate-x-5' : 'translate-x-0'
-                                            }`}
-                                    />
-                                </button>
-                            </div>
 
-                            {/* Noise Suppression */}
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-xs sm:text-sm font-medium text-white truncate">Noise Suppression</p>
-                                    <p className="text-[10px] sm:text-xs text-gray-400 truncate">Filter background noise</p>
-                                </div>
-                                <button
-                                    onClick={() => setNoiseSuppression(!noiseSuppression)}
-                                    role="switch"
-                                    aria-checked={noiseSuppression}
-                                    aria-label="Noise Suppression"
-                                    className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${noiseSuppression ? 'bg-blue-600' : 'bg-gray-600'
-                                        }`}
-                                >
-                                    <span
-                                        className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${noiseSuppression ? 'translate-x-5' : 'translate-x-0'
+                                {/* Auto Gain Control */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs sm:text-sm font-medium text-white truncate">Auto Gain Control</p>
+                                        <p className="text-[10px] sm:text-xs text-gray-400 truncate">Auto-adjust mic volume</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setAutoGainControl(!autoGainControl)}
+                                        role="switch"
+                                        aria-checked={autoGainControl}
+                                        aria-label="Auto Gain Control"
+                                        className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${autoGainControl ? 'bg-blue-600' : 'bg-gray-600'
                                             }`}
-                                    />
-                                </button>
+                                    >
+                                        <span
+                                            className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${autoGainControl ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                        />
+                                    </button>
+                                </div>
+
+                                {/* Noise Suppression */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs sm:text-sm font-medium text-white truncate">Noise Suppression</p>
+                                        <p className="text-[10px] sm:text-xs text-gray-400 truncate">Filter background noise</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setNoiseSuppression(!noiseSuppression)}
+                                        role="switch"
+                                        aria-checked={noiseSuppression}
+                                        aria-label="Noise Suppression"
+                                        className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${noiseSuppression ? 'bg-blue-600' : 'bg-gray-600'
+                                            }`}
+                                    >
+                                        <span
+                                            className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${noiseSuppression ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                        />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Leave Meeting Confirmation Modal */}
-            <ConfirmModal
-                isOpen={showLeaveConfirm}
-                title="Leave Meeting?"
-                message="Are you sure you want to leave this meeting? You can rejoin later using the same meeting code."
-                confirmText="Leave"
-                cancelText="Cancel"
-                onConfirm={handleEndCall}
-                onCancel={() => setShowLeaveConfirm(false)}
-            />
-        </div>
+                {/* Leave Meeting Confirmation Modal */}
+                <ConfirmModal
+                    isOpen={showLeaveConfirm}
+                    title="Leave Meeting?"
+                    message="Are you sure you want to leave this meeting? You can rejoin later using the same meeting code."
+                    confirmText="Leave"
+                    cancelText="Cancel"
+                    onConfirm={handleEndCall}
+                    onCancel={() => setShowLeaveConfirm(false)}
+                />
+            </div>
         </>
     );
 };

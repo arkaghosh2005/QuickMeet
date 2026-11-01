@@ -10,22 +10,42 @@ const PreCallPage = () => {
     const { meetingCode } = useParams();
     const { userData } = useAuth();
     const navigate = useNavigate();
-    let localVideoref = useRef();
+    const localVideoref = useRef();
+    const localStreamRef = useRef(null);
+    const isMountedRef = useRef(true);
 
     // User Identity
     const [displayName, setDisplayName] = useState(userData?.name || "");
 
     // Device Permissions
-    let [videoAvailable, setVideoAvailable] = useState(true);
-    let [audioAvailable, setAudioAvailable] = useState(true);
+    const [videoAvailable, setVideoAvailable] = useState(true);
+    const [audioAvailable, setAudioAvailable] = useState(true);
     const [aspectRatio, setAspectRatio] = useState(16 / 9);
 
     // User Toggles
-    let [video, setVideo] = useState(true);
-    let [audio, setAudio] = useState(true);
+    const [video, setVideo] = useState(true);
+    const [audio, setAudio] = useState(true);
+
+    const stopPreviewStream = () => {
+        isMountedRef.current = false;
+        try {
+            if (localStreamRef.current?.getTracks) {
+                localStreamRef.current.getTracks().forEach(track => track.stop());
+            }
+        } catch (e) { /* ignore */ }
+        localStreamRef.current = null;
+        if (localVideoref.current) {
+            localVideoref.current.srcObject = null;
+        }
+    };
 
     useEffect(() => {
+        isMountedRef.current = true;
         getPermissions();
+
+        return () => {
+            stopPreviewStream();
+        };
     }, []);
 
     useEffect(() => {
@@ -43,13 +63,15 @@ const PreCallPage = () => {
         };
     }, []);
 
-    let silence = () => {
-        let ctx = new AudioContext()
-        let oscillator = ctx.createOscillator()
-        let dst = oscillator.connect(ctx.createMediaStreamDestination())
+    const silence = () => {
+        const ctx = new AudioContext()
+        const oscillator = ctx.createOscillator()
+        const dst = oscillator.connect(ctx.createMediaStreamDestination())
         oscillator.start()
         ctx.resume()
-        return Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
+        const track = Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
+        ctx.close().catch(() => { })
+        return track
     }
 
     let black = ({ width = 640, height = 480 } = {}) => {
@@ -97,28 +119,6 @@ const PreCallPage = () => {
         setAudioAvailable(isAudioAvailable);
         if (!isVideoAvailable) setVideo(false);
         if (!isAudioAvailable) setAudio(false);
-
-        // Create an initial preview stream only if at least one device is available
-        if (isVideoAvailable || isAudioAvailable) {
-            try {
-                const preview = await navigator.mediaDevices.getUserMedia({
-                    video: isVideoAvailable,
-                    audio: isAudioAvailable,
-                });
-                window.localStream = preview;
-                if (localVideoref.current?.srcObject !== undefined) {
-                    try {
-                        localVideoref.current.srcObject = preview;
-                    } catch (e) {
-                        if (import.meta.env.DEV) console.warn("Preview assign failed:", e);
-                    }
-                }
-            } catch (e) {
-                if (import.meta.env.DEV) console.warn("Initial preview getUserMedia failed:", e);
-            }
-        } else {
-            if (import.meta.env.DEV) console.warn("No camera or microphone permissions available.");
-        }
     };
 
     let getUserMedia = () => {
@@ -150,13 +150,18 @@ const PreCallPage = () => {
     };
 
     let getUserMediaSuccess = (userStream) => {
-        // stop previous global stream safely
+        if (!isMountedRef.current) {
+            userStream.getTracks().forEach(track => track.stop());
+            return;
+        }
+
+        // stop previous stream safely
         try {
-            if (window.localStream?.getTracks) window.localStream.getTracks().forEach(track => track.stop());
+            if (localStreamRef.current?.getTracks) localStreamRef.current.getTracks().forEach(track => track.stop());
         } catch (e) { if (import.meta.env.DEV) console.warn(e); }
 
         // set new stream and show in preview
-        window.localStream = userStream;
+        localStreamRef.current = userStream;
         if (localVideoref.current?.srcObject !== undefined) {
             try { localVideoref.current.srcObject = userStream; } catch (e) { if (import.meta.env.DEV) console.warn("assign user stream failed:", e); }
         }
@@ -173,7 +178,7 @@ const PreCallPage = () => {
                 } catch (e) { if (import.meta.env.DEV) console.warn(e); }
 
                 const fallback = new MediaStream([black(), silence()]);
-                window.localStream = fallback;
+                localStreamRef.current = fallback;
                 if (localVideoref.current?.srcObject !== undefined) {
                     try { localVideoref.current.srcObject = fallback; } catch (e) { if (import.meta.env.DEV) console.warn("assign fallback failed:", e); }
                 }
@@ -198,13 +203,7 @@ const PreCallPage = () => {
 
     const handleJoinCall = () => {
         // Stop preview stream before navigating
-        try {
-            if (window.localStream?.getTracks) {
-                window.localStream.getTracks().forEach(track => track.stop());
-            }
-        } catch (e) {
-            if (import.meta.env.DEV) console.warn("Failed to stop preview stream:", e);
-        }
+        stopPreviewStream();
 
         // Check if this user created the meeting
         const isHost = sessionStorage.getItem(`created_${meetingCode}`) === 'true';
@@ -236,151 +235,147 @@ const PreCallPage = () => {
 
     return (
         <>
-        <SEO
-            title={`Pre-Call Setup - ${meetingCode}`}
-            description="Configure your camera, microphone, and display name before joining your QuickMeet video meeting."
-            path={`/pre-call/${meetingCode}`}
-            noIndex={true}
-        />
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-            <div className="w-full max-w-4xl">
-                {/* Header */}
-                <div className="text-center mb-10">
-                    <Button
-                        variant="ghost"
-                        onClick={() => {
-                            try {
-                                if (window.localStream?.getTracks) {
-                                    window.localStream.getTracks().forEach(track => track.stop());
-                                }
-                            } catch (e) { /* ignore */ }
-                            navigate("/meeting-entry");
-                        }}
-                        className="absolute top-4 left-4 text-white hover:bg-gray-800">
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back
-                    </Button>
-                </div>
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">Ready to join?</h1>
-                    <p className="text-gray-300">
-                        Meeting Code:{" "}
-                        <span className="font-mono text-blue-400">{meetingCode}</span>
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Video Preview */}
-                    <div className="lg:col-span-2">
-                        <div
-                            className="relative bg-gray-800 rounded-2xl overflow-hidden flex items-center justify-center"
-                            style={{ aspectRatio }}
-                        >
-                            {video ? (
-                                <video
-                                    ref={localVideoref}
-                                    autoPlay
-                                    muted
-                                    playsInline
-                                    onLoadedMetadata={(e) => setAspectRatio(e.target.videoWidth / e.target.videoHeight)}
-                                    style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                    <div className="w-24 h-24 bg-gray-600 rounded-full flex items-center justify-center">
-                                        <span className="text-2xl font-bold text-white">
-                                            {getInitials(displayName)}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Controls Overlay */}
-                            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4">
-                                <Button
-                                    onClick={toggleVideo}
-                                    variant={video ? "ghost" : "danger"}
-                                    className={`rounded-full p-3 ${video ? "bg-gray-700 hover:bg-gray-600" : ""}`}>
-                                    {video ? (
-                                        <Video className="w-5 h-5 text-white" />
-                                    ) : (
-                                        <VideoOff className="w-5 h-5" />
-                                    )}
-                                </Button>
-                                <Button
-                                    onClick={toggleAudio}
-                                    variant={audio ? "ghost" : "danger"}
-                                    className={`rounded-full p-3 ${audio ? "bg-gray-700 hover:bg-gray-600" : ""}`}>
-                                    {audio ? (
-                                        <Mic className="w-5 h-5 text-white" />
-                                    ) : (
-                                        <MicOff className="w-5 h-5" />
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
+            <SEO
+                title={`Pre-Call Setup - ${meetingCode}`}
+                description="Configure your camera, microphone, and display name before joining your QuickMeet video meeting."
+                path={`/pre-call/${meetingCode}`}
+                noIndex={true}
+            />
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+                <div className="w-full max-w-4xl">
+                    {/* Header */}
+                    <div className="text-center mb-10">
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                stopPreviewStream();
+                                navigate("/meeting-entry");
+                            }}
+                            className="absolute top-4 left-4 text-white hover:bg-gray-800">
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back
+                        </Button>
+                    </div>
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-white mb-2">Ready to join?</h1>
+                        <p className="text-gray-300">
+                            Meeting Code:{" "}
+                            <span className="font-mono text-blue-400">{meetingCode}</span>
+                        </p>
                     </div>
 
-                    {/* Settings Panel */}
-                    <div className="bg-white rounded-2xl p-6">
-                        <div className="flex items-center space-x-2 mb-6">
-                            <Settings className="w-5 h-5 text-gray-600" />
-                            <h2 className="text-xl font-semibold text-gray-900">Setup</h2>
-                        </div>
-
-                        <div className="space-y-6">
-                            {/* Display Name Input */}
-                            <Input
-                                label="Display Name"
-                                placeholder="Enter your name"
-                                value={displayName}
-                                onChange={handleDisplayNameChange}
-                                forceLightMode={true}
-                            />
-
-                            {/* Audio & Video Settings */}
-                            <div className="space-y-4">
-                                <h3 className="font-medium text-gray-900">Audio & Video</h3>
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-700">Camera</span>
-                                        <Button
-                                            onClick={toggleVideo}
-                                            variant={video ? "secondary" : "outline"}
-                                            size="sm">
-                                            {video ? "On" : "Off"}
-                                        </Button>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Video Preview */}
+                        <div className="lg:col-span-2">
+                            <div
+                                className="relative bg-gray-800 rounded-2xl overflow-hidden flex items-center justify-center"
+                                style={{ aspectRatio }}
+                            >
+                                {video ? (
+                                    <video
+                                        ref={localVideoref}
+                                        autoPlay
+                                        muted
+                                        playsInline
+                                        onLoadedMetadata={(e) => setAspectRatio(e.target.videoWidth / e.target.videoHeight)}
+                                        style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <div className="w-24 h-24 bg-gray-600 rounded-full flex items-center justify-center">
+                                            <span className="text-2xl font-bold text-white">
+                                                {getInitials(displayName)}
+                                            </span>
+                                        </div>
                                     </div>
+                                )}
 
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-700">Microphone</span>
-                                        <Button
-                                            onClick={toggleAudio}
-                                            variant={audio ? "secondary" : "outline"}
-                                            size="sm">
-                                            {audio ? "On" : "Off"}
-                                        </Button>
-                                    </div>
+                                {/* Controls Overlay */}
+                                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4">
+                                    <Button
+                                        onClick={toggleVideo}
+                                        variant={video ? "ghost" : "danger"}
+                                        className={`rounded-full p-3 ${video ? "bg-gray-700 hover:bg-gray-600" : ""}`}>
+                                        {video ? (
+                                            <Video className="w-5 h-5 text-white" />
+                                        ) : (
+                                            <VideoOff className="w-5 h-5" />
+                                        )}
+                                    </Button>
+                                    <Button
+                                        onClick={toggleAudio}
+                                        variant={audio ? "ghost" : "danger"}
+                                        className={`rounded-full p-3 ${audio ? "bg-gray-700 hover:bg-gray-600" : ""}`}>
+                                        {audio ? (
+                                            <Mic className="w-5 h-5 text-white" />
+                                        ) : (
+                                            <MicOff className="w-5 h-5" />
+                                        )}
+                                    </Button>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Join Button */}
-                            <div className="pt-4 border-t border-gray-200">
-                                <Button
-                                    onClick={handleJoinCall}
-                                    className="w-full"
-                                    size="lg"
-                                    disabled={!displayName.trim()}>
-                                    Join Meeting
-                                    <ArrowRight className="w-5 h-5 ml-2" />
-                                </Button>
+                        {/* Settings Panel */}
+                        <div className="bg-white rounded-2xl p-6">
+                            <div className="flex items-center space-x-2 mb-6">
+                                <Settings className="w-5 h-5 text-gray-600" />
+                                <h2 className="text-xl font-semibold text-gray-900">Setup</h2>
+                            </div>
+
+                            <div className="space-y-6">
+                                {/* Display Name Input */}
+                                <Input
+                                    label="Display Name"
+                                    placeholder="Enter your name"
+                                    value={displayName}
+                                    onChange={handleDisplayNameChange}
+                                    forceLightMode={true}
+                                />
+
+                                {/* Audio & Video Settings */}
+                                <div className="space-y-4">
+                                    <h3 className="font-medium text-gray-900">Audio & Video</h3>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-700">Camera</span>
+                                            <Button
+                                                onClick={toggleVideo}
+                                                variant={video ? "secondary" : "outline"}
+                                                size="sm">
+                                                {video ? "On" : "Off"}
+                                            </Button>
+                                        </div>
+
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-700">Microphone</span>
+                                            <Button
+                                                onClick={toggleAudio}
+                                                variant={audio ? "secondary" : "outline"}
+                                                size="sm">
+                                                {audio ? "On" : "Off"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Join Button */}
+                                <div className="pt-4 border-t border-gray-200">
+                                    <Button
+                                        onClick={handleJoinCall}
+                                        className="w-full"
+                                        size="lg"
+                                        disabled={!displayName.trim()}>
+                                        Join Meeting
+                                        <ArrowRight className="w-5 h-5 ml-2" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
         </>
     );
 };
