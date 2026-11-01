@@ -6,6 +6,14 @@ if (process.env.NODE_ENV !== "production") {
 import { Server } from "socket.io"
 import jwt from "jsonwebtoken"
 
+// Sanitize user input to prevent XSS
+const sanitize = (str) => {
+    if (typeof str !== 'string') return '';
+    return str.replace(/[<>&"']/g, (c) => ({
+        '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;'
+    }[c])).trim().slice(0, 100);
+};
+
 let connections = {}
 let messages = {}
 let roomCleanupTimers = {}
@@ -104,6 +112,8 @@ export const connectToSocket = (server) => {
 
     io.on("connection", (socket) => {
         socket.on("join-call", ({ roomUrl, userName, userRole, video, audio }) => {
+            userName = sanitize(userName);
+            userRole = (userRole === 'host' || userRole === 'participant') ? userRole : 'participant';
             if (!connections[roomUrl]) {
                 connections[roomUrl] = [];
             }
@@ -144,6 +154,8 @@ export const connectToSocket = (server) => {
         })
 
         socket.on("chat-message", (data, sender) => {
+            data = sanitize(data);
+            sender = sanitize(sender);
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
             );
@@ -158,6 +170,7 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("screen-share-toggle", (isSharing, sharerName) => {
+            if (sharerName) sharerName = sanitize(sharerName);
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
             );

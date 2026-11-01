@@ -31,7 +31,7 @@ const login = async (req, res) => {
         } else {
             return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid Password. Please Try Again." })
         }
-        
+
     } catch (e) {
         return res.status(500).json({ message: `Something went Wrong.` })
     }
@@ -47,7 +47,7 @@ const signup = async (req, res) => {
     try {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(httpStatus.FOUND).json({ message: "User already exists. Please Login." });
+            return res.status(httpStatus.CONFLICT).json({ message: "User already exists. Please Login." });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -72,17 +72,17 @@ const getUserHistory = async (req, res) => {
 
         // Get active rooms from socket manager
         const activeRooms = getActiveRooms();
-        
+
         // Fetch meetings and add active status (TTL index handles auto-expiry)
         const meetings = await Meeting.find({ user_id: userEmail }).sort({ date: -1 });
         const meetingsWithStatus = meetings.map(meeting => ({
             ...meeting.toObject(),
             isActive: activeRooms.includes(meeting.meetingCode)
         }));
-        
+
         res.json(meetingsWithStatus);
     } catch (e) {
-        res.status(500).json({ message: `Something went Wrong ${e}.` });
+        res.status(500).json({ message: "Something went wrong. Please try again later." });
     }
 }
 
@@ -104,7 +104,7 @@ const addToHistory = async (req, res) => {
 
         res.status(httpStatus.CREATED).json({ message: "Meeting added to history" });
     } catch (e) {
-        res.status(500).json({ message: `Something went Wrong ${e}.` });
+        res.status(500).json({ message: "Something went wrong. Please try again later." });
     }
 }
 
@@ -117,19 +117,19 @@ const deleteFromHistory = async (req, res) => {
     const { meeting_id } = req.body;
     try {
         const userEmail = req.user.email;
-        
-        const meeting = await Meeting.findOneAndDelete({ 
-            _id: meeting_id, 
-            user_id: userEmail 
+
+        const meeting = await Meeting.findOneAndDelete({
+            _id: meeting_id,
+            user_id: userEmail
         });
-        
+
         if (!meeting) {
             return res.status(404).json({ message: "Meeting not found" });
         }
-        
+
         res.status(httpStatus.OK).json({ message: "Meeting deleted from history" });
     } catch (e) {
-        res.status(500).json({ message: `Something went Wrong ${e}.` });
+        res.status(500).json({ message: "Something went wrong. Please try again later." });
     }
 }
 

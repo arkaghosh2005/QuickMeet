@@ -3,6 +3,13 @@ if (process.env.NODE_ENV !== "production") {
     dotenv.config();
 }
 
+import dns from "node:dns";
+try {
+    dns.setServers(["8.8.8.8", "8.8.4.4"]);
+} catch (err) {
+    console.warn("Could not set custom DNS servers:", err.message);
+}
+
 import express from "express";
 import { createServer } from "node:http";
 import { connectToSocket } from "./controllers/socketManager.js";

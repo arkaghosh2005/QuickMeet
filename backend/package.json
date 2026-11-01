@@ -1,11 +1,14 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/app.js",
   "type": "module",
   "scripts": {
     "dev": "nodemon src/app.js",
     "start": "node src/app.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "author": "Arka Ghosh",
   "dependencies": {
@@ -19,8 +22,9 @@
     "http-status": "^2.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.6.3",
-    "node": "^24.12.0",
-    "nodemon": "^3.1.11",
     "socket.io": "^4.8.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
   }
 }
