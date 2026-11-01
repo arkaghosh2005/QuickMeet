@@ -1,0 +1,68 @@
+﻿<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E3A5F"/>
+      <stop offset="50%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E3A5F"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#22C55E"/>
+    </linearGradient>
+    <linearGradient id="iconGradient" x1="0" y1="0" x2="80" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <radialGradient id="glowCenter" cx="600" cy="260" r="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+    <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#ffffff" stroke-opacity="0.03" stroke-width="1"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect width="1200" height="630" fill="url(#glowCenter)"/>
+  <circle cx="100" cy="100" r="200" fill="#2563EB" fill-opacity="0.05"/>
+  <circle cx="1100" cy="530" r="250" fill="#22C55E" fill-opacity="0.05"/>
+  <circle cx="900" cy="80" r="120" fill="#3B82F6" fill-opacity="0.04"/>
+  <g transform="translate(510, 140)" filter="url(#shadow)">
+    <rect x="0" y="15" width="110" height="80" rx="14" ry="14" fill="url(#iconGradient)"/>
+    <polygon points="120,30 160,10 160,100 120,80" fill="url(#iconGradient)"/>
+    <circle cx="30" cy="40" r="6" fill="#EF4444"/>
+    <circle cx="30" cy="40" r="3" fill="#FCA5A5"/>
+  </g>
+  <text x="600" y="310" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="72" font-weight="800" fill="#FFFFFF" letter-spacing="-1">QuickMeet</text>
+  <rect x="420" y="330" width="360" height="4" rx="2" fill="url(#accentGradient)"/>
+  <text x="600" y="380" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="26" font-weight="400" fill="#94A3B8" letter-spacing="0.5">Quick and Reliable Video Meetings</text>
+  <g transform="translate(600, 430)">
+    <g transform="translate(-280, 0)">
+      <rect x="-60" y="-16" width="120" height="32" rx="16" fill="#2563EB" fill-opacity="0.2" stroke="#2563EB" stroke-opacity="0.4" stroke-width="1"/>
+      <text x="0" y="5" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#60A5FA">HD Video</text>
+    </g>
+    <g transform="translate(-100, 0)">
+      <rect x="-70" y="-16" width="140" height="32" rx="16" fill="#22C55E" fill-opacity="0.2" stroke="#22C55E" stroke-opacity="0.4" stroke-width="1"/>
+      <text x="0" y="5" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#4ADE80">Screen Share</text>
+    </g>
+    <g transform="translate(100, 0)">
+      <rect x="-75" y="-16" width="150" height="32" rx="16" fill="#A855F7" fill-opacity="0.2" stroke="#A855F7" stroke-opacity="0.4" stroke-width="1"/>
+      <text x="0" y="5" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#C084FC">Real-time Chat</text>
+    </g>
+    <g transform="translate(280, 0)">
+      <rect x="-55" y="-16" width="110" height="32" rx="16" fill="#F59E0B" fill-opacity="0.2" stroke="#F59E0B" stroke-opacity="0.4" stroke-width="1"/>
+      <text x="0" y="5" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#FBBF24">Encrypted</text>
+    </g>
+  </g>
+  <g transform="translate(600, 520)">
+    <text x="0" y="0" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="500" fill="#64748B" letter-spacing="3">REACT &#x2022; WEBRTC &#x2022; NODE.JS &#x2022; SOCKET.IO</text>
+  </g>
+  <rect x="0" y="620" width="1200" height="10" fill="url(#accentGradient)"/>
+  <rect x="0" y="0" width="4" height="60" fill="#2563EB"/>
+  <rect x="0" y="0" width="60" height="4" fill="#2563EB"/>
+  <rect x="1196" y="0" width="4" height="60" fill="#22C55E"/>
+  <rect x="1140" y="0" width="60" height="4" fill="#22C55E"/>
+</svg>
