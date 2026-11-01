@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 import axios from "axios";
-import httpStatus from "http-status";
 
 // Create Context (no types in plain JS)
 export const AuthContext = createContext({});
@@ -73,7 +72,7 @@ export const AuthProvider = ({ children }) => {
         email: email,
         password: password,
       });
-      if (request.status === httpStatus.CREATED) {
+      if (request.status === 201) {
         return request.data.message;
       }
     } catch (error) {
@@ -91,7 +90,7 @@ export const AuthProvider = ({ children }) => {
         email: email,
         password: password,
       });
-      if (request.status === httpStatus.OK) {
+      if (request.status === 200) {
         setUserData(request.data.user);
         localStorage.setItem("userData", JSON.stringify(request.data.user));
         localStorage.setItem("token", request.data.token);
