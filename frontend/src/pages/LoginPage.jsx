@@ -76,127 +76,127 @@ const LoginPage = () => {
 
     return (
         <>
-        <SEO
-            title="Log In"
-            description="Sign in to your QuickMeet account to start or join HD video meetings with screen sharing and real-time chat."
-            path="/login"
-        />
-        <div
-            className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4 animate-fadeInUp"
-            style={{
-                backgroundColor: isDarkMode ? '#111827' : undefined,
-                backgroundImage: isDarkMode
-                    ? 'linear-gradient(to bottom right, #1F2937, #111827)'
-                    : undefined,
-            }}
-        >
-            <div className="w-full max-w-md">
-                {/* Back Button */}
-                <Button
-                    variant="ghost"
-                    onClick={navigateToHome}
-                    className="mb-6 p-2"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Home
-                </Button>
+            <SEO
+                title="Log In"
+                description="Sign in to your QuickMeet account to start or join HD video meetings with screen sharing and real-time chat."
+                path="/login"
+            />
+            <div
+                className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4 animate-fadeInUp"
+                style={{
+                    backgroundColor: isDarkMode ? '#111827' : undefined,
+                    backgroundImage: isDarkMode
+                        ? 'linear-gradient(to bottom right, #1F2937, #111827)'
+                        : undefined,
+                }}
+            >
+                <div className="w-full max-w-md">
+                    {/* Back Button */}
+                    <Button
+                        variant="ghost"
+                        onClick={navigateToHome}
+                        className="mb-6 p-2"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back to Home
+                    </Button>
 
-                {/* Login Card */}
-                <div
-                    className="bg-white rounded-2xl shadow-xl p-8 animate-scaleIn"
-                    style={{ backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' }}
-                >
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <div className="flex items-center justify-center space-x-2 mb-4">
-                            <Video className="w-8 h-8 text-blue-600" />
-                            <span
-                                className="text-2xl font-bold text-gray-900"
+                    {/* Login Card */}
+                    <div
+                        className="bg-white rounded-2xl shadow-xl p-8 animate-scaleIn"
+                        style={{ backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' }}
+                    >
+                        {/* Header */}
+                        <div className="text-center mb-8">
+                            <div className="flex items-center justify-center space-x-2 mb-4">
+                                <Video className="w-8 h-8 text-blue-600" />
+                                <span
+                                    className="text-2xl font-bold text-gray-900"
+                                    style={{ color: isDarkMode ? '#FFFFFF' : undefined }}
+                                >
+                                    QuickMeet
+                                </span>
+                            </div>
+                            <h1
+                                className="text-2xl font-bold text-gray-900 mb-2"
                                 style={{ color: isDarkMode ? '#FFFFFF' : undefined }}
                             >
-                                QuickMeet
-                            </span>
-                        </div>
-                        <h1
-                            className="text-2xl font-bold text-gray-900 mb-2"
-                            style={{ color: isDarkMode ? '#FFFFFF' : undefined }}
-                        >
-                            Welcome back
-                        </h1>
-                        <p
-                            className="text-gray-600"
-                            style={{ color: isDarkMode ? '#D1D5DB' : undefined }}
-                        >
-                            Sign in to your account to continue
-                        </p>
-                    </div>
-
-                    {/* Error Message */}
-                    {errors.general && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
-                            <p className="text-red-600 text-sm">{errors.general}</p>
-                        </div>
-                    )}
-
-                    {/* Login Form */}
-                    <form onSubmit={handleSubmit} className="space-y-6" aria-label="Login form">
-                        <Input
-                            type="text"
-                            label="Email Address"
-                            placeholder="Enter your email"
-                            value={email}
-                            onChange={handleEmailChange}
-                            error={errors.email}
-                            icon={<Mail className="w-5 h-5 text-gray-400" />}
-                        />
-
-                        <Input
-                            type="password"
-                            label="Password"
-                            placeholder="Enter your password"
-                            value={password}
-                            onChange={handlePasswordChange}
-                            error={errors.password}
-                            icon={<Lock className="w-5 h-5 text-gray-400" />}
-                        />
-
-                        <Button
-                            type="submit"
-                            loading={loading}
-                            className="w-full"
-                            size="lg"
-                        >
-                            Sign In
-                        </Button>
-                    </form>
-
-                    {/* Footer */}
-                    <div className="mt-8 text-center">
-                        <p className={isDarkMode ? "text-gray-300" : "text-gray-600"}>
-                            Don't have an account?{' '}
-                            <Link
-                                to="/signup"
-                                className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                Welcome back
+                            </h1>
+                            <p
+                                className="text-gray-600"
+                                style={{ color: isDarkMode ? '#D1D5DB' : undefined }}
                             >
-                                Sign up
-                            </Link>
-                        </p>
-                    </div>
-                </div>
+                                Sign in to your account to continue
+                            </p>
+                        </div>
 
-                {/* Guest Option */}
-                <div className="mt-6 text-center">
-                    <p className={`mb-3 ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>Or continue without an account</p>
-                    <Button
-                        variant="outline"
-                        onClick={navigateToHome}
-                        className="w-full"
-                    >
-                        Join as Guest
-                    </Button>
+                        {/* Error Message */}
+                        {errors.general && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
+                                <p className="text-red-600 text-sm">{errors.general}</p>
+                            </div>
+                        )}
+
+                        {/* Login Form */}
+                        <form onSubmit={handleSubmit} className="space-y-6" aria-label="Login form">
+                            <Input
+                                type="text"
+                                label="Email Address"
+                                placeholder="Enter your email"
+                                value={email}
+                                onChange={handleEmailChange}
+                                error={errors.email}
+                                icon={<Mail className="w-5 h-5 text-gray-400" />}
+                            />
+
+                            <Input
+                                type="password"
+                                label="Password"
+                                placeholder="Enter your password"
+                                value={password}
+                                onChange={handlePasswordChange}
+                                error={errors.password}
+                                icon={<Lock className="w-5 h-5 text-gray-400" />}
+                            />
+
+                            <Button
+                                type="submit"
+                                loading={loading}
+                                className="w-full"
+                                size="lg"
+                            >
+                                Sign In
+                            </Button>
+                        </form>
+
+                        {/* Footer */}
+                        <div className="mt-8 text-center">
+                            <p className={isDarkMode ? "text-gray-300" : "text-gray-600"}>
+                                Don't have an account?{' '}
+                                <Link
+                                    to="/signup"
+                                    className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                >
+                                    Sign up
+                                </Link>
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Guest Option */}
+                    <div className="mt-6 text-center">
+                        <p className={`mb-3 ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>Or continue without an account</p>
+                        <Button
+                            variant="outline"
+                            onClick={navigateToHome}
+                            className="w-full"
+                        >
+                            Join as Guest
+                        </Button>
+                    </div>
                 </div>
             </div>
-        </div>
         </>
     );
 };

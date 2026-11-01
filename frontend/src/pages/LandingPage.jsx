@@ -5,7 +5,7 @@ import Input from "../components/Input";
 import DarkModeToggle from "../components/DarkModeToggle";
 import SEO from "../components/SEO";
 import { useTheme } from "../context/ThemeContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const LandingPage = () => {
@@ -13,9 +13,10 @@ const LandingPage = () => {
     const { loginAsGuest } = useAuth();
     const { isDarkMode } = useTheme();
     const navigate = useNavigate();
+    const routerLocation = useLocation();
 
     useEffect(() => {
-        const cameFromInternal = location.state?.fromLogout || document.referrer.includes(window.location.origin);
+        const cameFromInternal = routerLocation.state?.fromLogout || document.referrer.includes(window.location.origin);
         if (!cameFromInternal) return;
 
         const blockNav = (e) => {
@@ -29,7 +30,7 @@ const LandingPage = () => {
         return () => {
             window.removeEventListener("popstate", blockNav);
         };
-    }, [location.state]);
+    }, [routerLocation.state]);
 
     const handleGuestJoin = () => {
         const trimmedName = guestName.trim();
