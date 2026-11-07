@@ -79,6 +79,14 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/pre-call/:meetingCode"
           element={
             <ProtectedRoute>
