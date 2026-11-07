@@ -667,6 +667,15 @@ const VideoCallPage = () => {
                 p.isMe ? { ...p, id: myId, socketId: myId } : p
             ));
 
+            // Remove old listeners before re-registering to prevent
+            // duplicates accumulating on socket reconnects
+            socket.off('chat-message');
+            socket.off('user-started-screen-share');
+            socket.off('user-stopped-screen-share');
+            socket.off('user-media-state-changed');
+            socket.off('user-left');
+            socket.off('user-joined');
+
             socket.on('chat-message', addMessage);
 
             socket.on('user-started-screen-share', (socketId, sharerName) => {

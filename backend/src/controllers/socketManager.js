@@ -123,7 +123,22 @@ export const connectToSocket = (server) => {
                 delete roomCleanupTimers[roomUrl];
             }
 
-            connections[roomUrl].push({ socketId: socket.id, userName, userRole, video, audio });
+            // Deduplicate: remove stale entries for the same user
+            // (e.g. reconnect with new socket ID before old disconnect fires)
+            const userId = socket.user?.id || socket.user?.name;
+            connections[roomUrl] = connections[roomUrl].filter(user => {
+                if (user.socketId === socket.id) return false;
+                if (userId && user._userId === userId) {
+                    // Notify others that the old socket left
+                    connections[roomUrl].forEach(u =>
+                        io.to(u.socketId).emit("user-left", user.socketId)
+                    );
+                    return false;
+                }
+                return true;
+            });
+
+            connections[roomUrl].push({ socketId: socket.id, userName, userRole, video, audio, _userId: userId });
 
             connections[roomUrl].forEach(user =>
                 io.to(user.socketId).emit("user-joined", socket.id, connections[roomUrl])
