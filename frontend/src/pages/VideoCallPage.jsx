@@ -97,6 +97,8 @@ const VideoCallPage = () => {
     // Connection status
     const [connectionStatus, setConnectionStatus] = useState('connected');
     const [isJoining, setIsJoining] = useState(true);
+    const joiningTimeoutRef = useRef(null);
+    const isReconnectingRef = useRef(false);
 
 
     useEffect(() => {
@@ -142,6 +144,34 @@ const VideoCallPage = () => {
 
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
+
+    // Reconnect when mobile tab/app returns to foreground
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState !== 'visible') return;
+            if (!isCallActiveRef.current) return;
+
+            // If socket is disconnected or doesn't exist, reconnect
+            if (!socketRef.current?.connected) {
+                setConnectionStatus('reconnecting');
+                isReconnectingRef.current = true;
+
+                if (socketRef.current) {
+                    socketRef.current.removeAllListeners();
+                    socketRef.current.disconnect();
+                    socketRef.current = null;
+                }
+
+                connectToSocketServer();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, []);
 
@@ -293,9 +323,11 @@ const VideoCallPage = () => {
         return () => {
             stopAllMediaStreams();
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            if (joiningTimeoutRef.current) clearTimeout(joiningTimeoutRef.current);
             Object.values(connections).forEach(pc => pc.close());
             connections = {};
             if (socketRef.current) {
+                socketRef.current.removeAllListeners();
                 socketRef.current.disconnect();
             }
         };
