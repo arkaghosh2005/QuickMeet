@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import MeetingEntryPage from "./pages/MeetingEntryPage";
 import MeetingHistoryPage from "./pages/MeetingHistoryPage";
+import SettingsPage from "./pages/SettingsPage";
 import PreCallPage from "./pages/PreCallPage";
 import VideoCallPage from "./pages/VideoCallPage";
 import NotFoundPage from "./pages/NotFoundPage";

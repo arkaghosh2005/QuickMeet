@@ -101,8 +101,8 @@ const MeetingEntryPage = () => {
         {
             icon: <Video className="w-8 h-8 text-red-600" />,
             title: 'Settings',
-            description: 'Audio & video settings available in-call',
-            onClick: () => handleStartNewMeeting(),
+            description: 'Manage your account & preferences',
+            onClick: () => navigate('/settings'),
         },
     ];
 
