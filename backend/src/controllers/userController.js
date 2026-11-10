@@ -9,7 +9,7 @@ import { getActiveRooms } from "./socketManager.js";
 const login = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg });
+        return res.status(httpStatus.BAD_REQUEST).json({ message: errors.array()[0].msg });
     }
 
     const { email, password } = req.body;
@@ -23,24 +23,24 @@ const login = async (req, res) => {
         let isPasswordCorrect = await bcrypt.compare(password, user.password)
         if (isPasswordCorrect) {
             const token = jwt.sign(
-                { email: user.email, name: user.name },
+                { id: user._id, email: user.email, name: user.name },
                 process.env.JWT_SECRET,
                 { expiresIn: '7d' }
             );
-            return res.status(httpStatus.OK).json({ token, user: { name: user.name, email: user.email } })
+            return res.status(httpStatus.OK).json({ token, user: { id: user._id, name: user.name, email: user.email } })
         } else {
             return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid Password. Please Try Again." })
         }
 
     } catch (e) {
-        return res.status(500).json({ message: `Something went Wrong.` })
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: `Something went Wrong.` })
     }
 }
 
 const signup = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg });
+        return res.status(httpStatus.BAD_REQUEST).json({ message: errors.array()[0].msg });
     }
 
     const { name, email, password } = req.body;
@@ -60,7 +60,7 @@ const signup = async (req, res) => {
         await newUser.save();
         res.status(httpStatus.CREATED).json({ message: "User has been Registered. Please Login." })
     } catch (e) {
-        res.status(500).json({ message: `Something went Wrong.` })
+        res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: `Something went Wrong.` })
     }
 }
 
@@ -82,14 +82,14 @@ const getUserHistory = async (req, res) => {
 
         res.json(meetingsWithStatus);
     } catch (e) {
-        res.status(500).json({ message: "Something went wrong. Please try again later." });
+        res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Something went wrong. Please try again later." });
     }
 }
 
 const addToHistory = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg });
+        return res.status(httpStatus.BAD_REQUEST).json({ message: errors.array()[0].msg });
     }
 
     const { meeting_code } = req.body;
@@ -104,14 +104,14 @@ const addToHistory = async (req, res) => {
 
         res.status(httpStatus.CREATED).json({ message: "Meeting added to history" });
     } catch (e) {
-        res.status(500).json({ message: "Something went wrong. Please try again later." });
+        res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Something went wrong. Please try again later." });
     }
 }
 
 const deleteFromHistory = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg });
+        return res.status(httpStatus.BAD_REQUEST).json({ message: errors.array()[0].msg });
     }
 
     const { meeting_id } = req.body;
@@ -124,19 +124,19 @@ const deleteFromHistory = async (req, res) => {
         });
 
         if (!meeting) {
-            return res.status(404).json({ message: "Meeting not found" });
+            return res.status(httpStatus.NOT_FOUND).json({ message: "Meeting not found" });
         }
 
         res.status(httpStatus.OK).json({ message: "Meeting deleted from history" });
     } catch (e) {
-        res.status(500).json({ message: "Something went wrong. Please try again later." });
+        res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Something went wrong. Please try again later." });
     }
 }
 
 const updateProfile = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg });
+        return res.status(httpStatus.BAD_REQUEST).json({ message: errors.array()[0].msg });
     }
 
     const { name, email, currentPassword, newPassword } = req.body;
@@ -168,7 +168,7 @@ const updateProfile = async (req, res) => {
         // Update password if a new one is provided
         if (newPassword) {
             if (newPassword.length < 8) {
-                return res.status(400).json({ message: "New password must be at least 8 characters." });
+                return res.status(httpStatus.BAD_REQUEST).json({ message: "New password must be at least 8 characters." });
             }
             user.password = await bcrypt.hash(newPassword, 10);
         }
@@ -177,7 +177,7 @@ const updateProfile = async (req, res) => {
 
         // Issue a new token with updated info
         const token = jwt.sign(
-            { email: user.email, name: user.name },
+            { id: user._id, email: user.email, name: user.name },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -185,10 +185,10 @@ const updateProfile = async (req, res) => {
         res.status(httpStatus.OK).json({
             message: "Profile updated successfully.",
             token,
-            user: { name: user.name, email: user.email }
+            user: { id: user._id, name: user.name, email: user.email }
         });
     } catch (e) {
-        res.status(500).json({ message: "Something went wrong. Please try again later." });
+        res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Something went wrong. Please try again later." });
     }
 }
 
@@ -196,7 +196,7 @@ const verifyPassword = async (req, res) => {
     const { password } = req.body;
 
     if (!password) {
-        return res.status(400).json({ message: "Password is required." });
+        return res.status(httpStatus.BAD_REQUEST).json({ message: "Password is required." });
     }
 
     try {
@@ -212,7 +212,7 @@ const verifyPassword = async (req, res) => {
 
         res.status(httpStatus.OK).json({ message: "Password verified." });
     } catch (e) {
-        res.status(500).json({ message: "Something went wrong. Please try again later." });
+        res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Something went wrong. Please try again later." });
     }
 }
 
@@ -220,7 +220,7 @@ const deleteAccount = async (req, res) => {
     const { password } = req.body;
 
     if (!password) {
-        return res.status(400).json({ message: "Password is required." });
+        return res.status(httpStatus.BAD_REQUEST).json({ message: "Password is required." });
     }
 
     try {
@@ -243,7 +243,7 @@ const deleteAccount = async (req, res) => {
 
         res.status(httpStatus.OK).json({ message: "Account deleted successfully." });
     } catch (e) {
-        res.status(500).json({ message: "Something went wrong. Please try again later." });
+        res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Something went wrong. Please try again later." });
     }
 }
 
