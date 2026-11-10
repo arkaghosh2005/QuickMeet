@@ -19,25 +19,18 @@ let messages = {}
 let roomCleanupTimers = {}
 
 const ROOM_EXPIRY_TIME = 60 * 60 * 1000; // 1 hour in milliseconds
+const MAX_MESSAGES_PER_ROOM = 500;
 
 // Export function to get all active room codes
 export const getActiveRooms = () => {
     const activeRooms = new Set();
-    for (const roomUrl of Object.keys(connections)) {
-        // Extract meeting code from URL (last segment)
-        const parts = roomUrl.split('/');
-        const meetingCode = parts[parts.length - 1];
-        if (meetingCode) {
-            activeRooms.add(meetingCode);
-        }
+    // Room keys are now plain meeting codes (no URL parsing needed)
+    for (const code of Object.keys(connections)) {
+        if (code) activeRooms.add(code);
     }
     // Also include rooms that are scheduled for cleanup (still joinable)
-    for (const roomUrl of Object.keys(roomCleanupTimers)) {
-        const parts = roomUrl.split('/');
-        const meetingCode = parts[parts.length - 1];
-        if (meetingCode) {
-            activeRooms.add(meetingCode);
-        }
+    for (const code of Object.keys(roomCleanupTimers)) {
+        if (code) activeRooms.add(code);
     }
     return Array.from(activeRooms);
 };
@@ -111,6 +104,17 @@ export const connectToSocket = (server) => {
     });
 
     io.on("connection", (socket) => {
+        // Token-bucket rate limiter per socket
+        const rateBucket = { tokens: 20, max: 20, refillRate: 5, lastRefill: Date.now() };
+        const consumeToken = () => {
+            const now = Date.now();
+            const elapsed = (now - rateBucket.lastRefill) / 1000;
+            rateBucket.tokens = Math.min(rateBucket.max, rateBucket.tokens + elapsed * rateBucket.refillRate);
+            rateBucket.lastRefill = now;
+            if (rateBucket.tokens < 1) return false;
+            rateBucket.tokens -= 1;
+            return true;
+        };
         socket.on("join-call", ({ roomUrl, userName, userRole, video, audio }) => {
             userName = sanitize(userName);
             userRole = (userRole === 'host' || userRole === 'participant') ? userRole : 'participant';
@@ -165,10 +169,12 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("signal", (toId, message) => {
+            if (!consumeToken()) return;
             io.to(toId).emit("signal", socket.id, message);
         })
 
         socket.on("chat-message", (data, sender) => {
+            if (!consumeToken()) return;
             data = sanitize(data);
             sender = sanitize(sender);
             const room = Object.keys(connections).find(key =>
@@ -178,6 +184,7 @@ export const connectToSocket = (server) => {
 
             if (!messages[room]) messages[room] = [];
             messages[room].push({ sender, data, "socket-id-sender": socket.id });
+            if (messages[room].length > MAX_MESSAGES_PER_ROOM) messages[room].shift();
 
             connections[room].forEach(user =>
                 io.to(user.socketId).emit("chat-message", data, sender, socket.id)
