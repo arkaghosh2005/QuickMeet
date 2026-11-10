@@ -10,7 +10,6 @@ import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
 
 const server_url = import.meta.env.VITE_SERVER_URL;
-let connections = {};
 const peerConfigConnections = {
     "iceServers": [
         { "urls": import.meta.env.VITE_STUN_URL_1 },
@@ -40,6 +39,7 @@ const VideoCallPage = () => {
     const localStreamRef = useRef(null);
     const screenStreamRef = useRef(null);
     const isCallActiveRef = useRef(true);
+    const connectionsRef = useRef({});
 
     // Get initial state from PreCallPage
     const initialState = location.state || {
@@ -324,8 +324,8 @@ const VideoCallPage = () => {
             stopAllMediaStreams();
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
             if (joiningTimeoutRef.current) clearTimeout(joiningTimeoutRef.current);
-            Object.values(connections).forEach(pc => pc.close());
-            connections = {};
+            Object.values(connectionsRef.current).forEach(pc => pc.close());
+            connectionsRef.current = {};
             if (socketRef.current) {
                 socketRef.current.removeAllListeners();
                 socketRef.current.disconnect();
@@ -389,7 +389,7 @@ const VideoCallPage = () => {
         if (!screenTrack) return;
 
         // Add to all peers & renegotiate
-        Object.entries(connections).forEach(([peerId, pc]) => {
+        Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
             if (peerId === socketRef.current?.id) return;
             try {
                 pc.addTrack(screenTrack, stream);
@@ -541,7 +541,7 @@ const VideoCallPage = () => {
         const screenTrack = screenStreamRef.current?.getVideoTracks()[0];
 
         // Replace tracks in existing peer connections
-        Object.entries(connections).forEach(([peerId, pc]) => {
+        Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
             if (peerId === myId) return;
 
             const senders = pc.getSenders();
@@ -570,7 +570,7 @@ const VideoCallPage = () => {
     const gotMessageFromServer = (fromId, message) => {
         if (fromId === socketRef.current?.id) return;
 
-        const pc = connections[fromId];
+        const pc = connectionsRef.current[fromId];
         if (!pc) return;
 
         const signal = JSON.parse(message);
@@ -615,9 +615,10 @@ const VideoCallPage = () => {
 
         socketRef.current = io.connect(server_url, {
             secure: window.location.protocol === "https:",
-            reconnectionAttempts: 5,
+            reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
+            reconnectionDelayMax: 10000,
+            timeout: 15000,
             auth: socketAuth,
         });
         socketRef.current.on('signal', gotMessageFromServer);
@@ -646,7 +647,7 @@ const VideoCallPage = () => {
             }
 
             socket.emit('join-call', {
-                roomUrl: window.location.href,
+                roomUrl: meetingCode,
                 userName: initialState.displayName,
                 userRole: initialState.isHost ? 'host' : 'participant',
                 video, audio,
@@ -702,8 +703,8 @@ const VideoCallPage = () => {
                 setVideos(prev => prev.filter(v => v.socketId !== id));
                 delete peerCameraTracksRef.current[id];
                 clientsRef.current = clientsRef.current.filter(c => c.socketId !== id);
-                connections[id]?.close();
-                delete connections[id];
+                connectionsRef.current[id]?.close();
+                delete connectionsRef.current[id];
             });
 
             socket.on('user-joined', (id, clients) => {
@@ -732,9 +733,9 @@ const VideoCallPage = () => {
 
                 // Setup peer connections for each remote client
                 clients.forEach(({ socketId: peerId }) => {
-                    if (peerId === myId || connections[peerId]) return;
+                    if (peerId === myId || connectionsRef.current[peerId]) return;
 
-                    const pc = connections[peerId] = new RTCPeerConnection(peerConfigConnections);
+                    const pc = connectionsRef.current[peerId] = new RTCPeerConnection(peerConfigConnections);
 
                     pc.onicecandidate = (e) => {
                         if (e.candidate) socket.emit('signal', peerId, JSON.stringify({ ice: e.candidate }));
@@ -814,7 +815,7 @@ const VideoCallPage = () => {
 
                 // If I just joined, send offers to all peers
                 if (id === myId) {
-                    Object.entries(connections).forEach(([peerId, pc]) => {
+                    Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
                         if (peerId === myId) return;
                         pc.createOffer()
                             .then(desc => pc.setLocalDescription(desc))
@@ -848,7 +849,7 @@ const VideoCallPage = () => {
 
         // Stop sharing - remove screen track from all peers
         const screenTrack = screenStreamRef.current?.getVideoTracks()[0];
-        Object.entries(connections).forEach(([peerId, pc]) => {
+        Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
             if (peerId === socketRef.current?.id) return;
             const sender = pc.getSenders().find(s => s.track === screenTrack);
             if (sender) pc.removeTrack(sender);
@@ -896,8 +897,8 @@ const VideoCallPage = () => {
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
         // Close all peer connections
-        Object.values(connections).forEach(pc => pc.close());
-        connections = {};
+        Object.values(connectionsRef.current).forEach(pc => pc.close());
+        connectionsRef.current = {};
 
         // Disconnect socket
         socketRef.current?.disconnect();
@@ -944,6 +945,7 @@ const VideoCallPage = () => {
 
     const handleManualReconnect = () => {
         setConnectionStatus('reconnecting');
+        socketRef.current?.removeAllListeners();
         socketRef.current?.disconnect();
         socketRef.current = null;
         connectToSocketServer();
@@ -1068,8 +1070,8 @@ const VideoCallPage = () => {
                 {/* Connection Status Bar */}
                 {connectionStatus !== 'connected' && (
                     <div className={`px-4 py-2 flex items-center justify-center space-x-2 text-sm font-medium ${connectionStatus === 'reconnecting'
-                            ? 'bg-yellow-600/90 text-white'
-                            : 'bg-red-600/90 text-white'
+                        ? 'bg-yellow-600/90 text-white'
+                        : 'bg-red-600/90 text-white'
                         }`}>
                         {connectionStatus === 'reconnecting' ? (
                             <>
