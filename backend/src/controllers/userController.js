@@ -139,7 +139,7 @@ const updateProfile = async (req, res) => {
         return res.status(400).json({ message: errors.array()[0].msg });
     }
 
-    const { name, email, currentPassword } = req.body;
+    const { name, email, currentPassword, newPassword } = req.body;
 
     try {
         const user = await User.findOne({ email: req.user.email });
@@ -164,6 +164,15 @@ const updateProfile = async (req, res) => {
         // Update fields
         user.name = name;
         user.email = email;
+
+        // Update password if a new one is provided
+        if (newPassword) {
+            if (newPassword.length < 8) {
+                return res.status(400).json({ message: "New password must be at least 8 characters." });
+            }
+            user.password = await bcrypt.hash(newPassword, 10);
+        }
+
         await user.save();
 
         // Issue a new token with updated info

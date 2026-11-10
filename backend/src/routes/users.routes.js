@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { body } from "express-validator";
-import { addToHistory, deleteFromHistory, getUserHistory, login, signup } from "../controllers/userController.js";
+import { addToHistory, deleteFromHistory, getUserHistory, login, signup, updateProfile, verifyPassword, deleteAccount } from "../controllers/userController.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();

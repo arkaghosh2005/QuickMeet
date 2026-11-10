@@ -18,6 +18,8 @@ const SettingsPage = () => {
     const [editEmail, setEditEmail] = useState(userData?.email || '');
     const [currentPasswordForUpdate, setCurrentPasswordForUpdate] = useState('');
     const [showCurrentPasswordForUpdate, setShowCurrentPasswordForUpdate] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
     const [updateLoading, setUpdateLoading] = useState(false);
     const [updateError, setUpdateError] = useState('');
     const [updateSuccess, setUpdateSuccess] = useState('');
@@ -48,6 +50,14 @@ const SettingsPage = () => {
             return;
         }
 
+        // Validate new password if provided
+        if (newPassword) {
+            if (newPassword.length < 8) {
+                setUpdateError('New password must be at least 8 characters');
+                return;
+            }
+        }
+
         const token = localStorage.getItem('token');
         if (!token) {
             setUpdateError('Session expired. Please log in again.');
@@ -56,11 +66,16 @@ const SettingsPage = () => {
 
         setUpdateLoading(true);
         try {
-            const res = await apiClient.put('/v1/users/profile', {
+            const payload = {
                 name: editName.trim(),
                 email: editEmail.trim(),
                 currentPassword: currentPasswordForUpdate,
-            }, {
+            };
+            if (newPassword) {
+                payload.newPassword = newPassword;
+            }
+
+            const res = await apiClient.put('/v1/users/profile', payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -72,8 +87,9 @@ const SettingsPage = () => {
                 localStorage.setItem('token', res.data.token);
             }
 
-            setUpdateSuccess('Profile updated successfully');
+            setUpdateSuccess(res.data.message || 'Profile updated successfully');
             setCurrentPasswordForUpdate('');
+            setNewPassword('');
         } catch (err) {
             setUpdateError(err.response?.data?.message || 'Failed to update profile');
         } finally {
@@ -303,6 +319,35 @@ const SettingsPage = () => {
                                             </div>
                                             <p className={`text-xs mt-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
                                                 Confirm your current password to save any changes
+                                            </p>
+                                        </div>
+
+                                        {/* New Password (optional) */}
+                                        <div>
+                                            <label className={`block text-sm font-medium mb-1.5 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                                                New Password <span className={`font-normal ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>(optional)</span>
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type={showNewPassword ? "text" : "password"}
+                                                    value={newPassword}
+                                                    onChange={(e) => setNewPassword(e.target.value)}
+                                                    className={`w-full px-3 py-2.5 pr-10 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode
+                                                        ? "bg-gray-600 border-gray-500 text-white placeholder-gray-400"
+                                                        : "bg-white border-gray-300 text-gray-900"
+                                                        }`}
+                                                    placeholder="Leave blank to keep current password"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                                    className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-1 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                                                >
+                                                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            </div>
+                                            <p className={`text-xs mt-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                                                Minimum 8 characters. Leave empty if you don't want to change it.
                                             </p>
                                         </div>
 
