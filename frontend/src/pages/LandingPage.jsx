@@ -33,9 +33,9 @@ const LandingPage = () => {
     }, [routerLocation.state]);
 
     const handleGuestJoin = () => {
-        const trimmedName = guestName.trim();
-        if (trimmedName) {
-            loginAsGuest(trimmedName);
+        const sanitized = guestName.trim().replace(/[<>&"']/g, '').slice(0, 50);
+        if (sanitized) {
+            loginAsGuest(sanitized);
             navigate("/meeting-entry");
         }
     };
@@ -61,7 +61,7 @@ const LandingPage = () => {
         {
             icon: <Shield className="w-8 h-8 text-purple-600" />,
             title: "Secure & Private",
-            description: "End-to-end encryption keeps your conversations safe",
+            description: "Peer-to-peer encrypted WebRTC keeps your calls secure",
         },
         {
             icon: <Smartphone className="w-8 h-8 text-orange-600" />,

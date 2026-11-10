@@ -342,26 +342,27 @@ const VideoCallPage = () => {
         }
     }, [participants]);
 
-    let silence = () => {
+    const silence = () => {
         const ctx = new AudioContext()
         const oscillator = ctx.createOscillator()
         const dst = oscillator.connect(ctx.createMediaStreamDestination())
         oscillator.start()
         ctx.resume()
         const track = Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
-        // Close the AudioContext after extracting the track to prevent resource leaks
+        // Stop oscillator and close AudioContext to prevent resource leaks
+        oscillator.stop()
         ctx.close().catch(() => { })
         return track
     }
 
-    let black = ({ width = 640, height = 480 } = {}) => {
+    const black = ({ width = 640, height = 480 } = {}) => {
         let canvas = Object.assign(document.createElement("canvas"), { width, height })
         canvas.getContext('2d').fillRect(0, 0, width, height)
         let stream = canvas.captureStream()
         return Object.assign(stream.getVideoTracks()[0], { enabled: false })
     }
 
-    let getDisplayMedia = () => {
+    const getDisplayMedia = () => {
         if (screenShare && navigator.mediaDevices?.getDisplayMedia) {
             navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
                 .then(getDisplayMediaSuccess)
@@ -373,7 +374,7 @@ const VideoCallPage = () => {
         }
     }
 
-    let getDisplayMediaSuccess = (stream) => {
+    const getDisplayMediaSuccess = (stream) => {
         if (!isCallActiveRef.current) {
             stream.getTracks().forEach(t => t.stop());
             return;
@@ -493,7 +494,7 @@ const VideoCallPage = () => {
         setSelectedVideoDevice(deviceId);
     };
 
-    let getUserMedia = () => {
+    const getUserMedia = () => {
         const wantVideo = !!(video && videoAvailable);
         const wantAudio = !!(audio && audioAvailable);
 
@@ -526,7 +527,7 @@ const VideoCallPage = () => {
             });
     };
 
-    let getUserMediaSuccess = (stream) => {
+    const getUserMediaSuccess = (stream) => {
         if (!isCallActiveRef.current) {
             stream.getTracks().forEach(t => t.stop());
             return;
@@ -566,7 +567,7 @@ const VideoCallPage = () => {
         if (video !== undefined && audio !== undefined) getUserMedia();
     }, [video, audio, echoCancellation, autoGainControl, noiseSuppression, selectedAudioDevice, selectedVideoDevice]);
 
-    let gotMessageFromServer = (fromId, message) => {
+    const gotMessageFromServer = (fromId, message) => {
         if (fromId === socketRef.current?.id) return;
 
         const pc = connections[fromId];
@@ -600,7 +601,7 @@ const VideoCallPage = () => {
         }
     };
 
-    let connectToSocketServer = () => {
+    const connectToSocketServer = () => {
         if (socketRef.current?.connected) return;
 
         socketRef.current?.disconnect();
@@ -659,8 +660,6 @@ const VideoCallPage = () => {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(err => { if (import.meta.env.DEV) console.log('Failed to save meeting to history:', err); });
             }
-
-            window.mySocket = socket;
 
             // Update current user with socket ID
             setParticipants(prev => prev.map(p =>
@@ -876,10 +875,9 @@ const VideoCallPage = () => {
     };
 
     const toggleChat = () => {
-        setIsChatOpen(!isChatOpen);
-        if (isChatOpen) {
-            setNewMessages(0);
-        }
+        const willOpen = !isChatOpen;
+        setIsChatOpen(willOpen);
+        if (willOpen) setNewMessages(0);
     };
 
     const toggleParticipants = () => {

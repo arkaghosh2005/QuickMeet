@@ -70,14 +70,15 @@ const PreCallPage = () => {
         oscillator.start()
         ctx.resume()
         const track = Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
+        oscillator.stop()
         ctx.close().catch(() => { })
         return track
     }
 
-    let black = ({ width = 640, height = 480 } = {}) => {
-        let canvas = Object.assign(document.createElement("canvas"), { width, height })
+    const black = ({ width = 640, height = 480 } = {}) => {
+        const canvas = Object.assign(document.createElement("canvas"), { width, height })
         canvas.getContext('2d').fillRect(0, 0, width, height)
-        let stream = canvas.captureStream()
+        const stream = canvas.captureStream()
         return Object.assign(stream.getVideoTracks()[0], { enabled: false })
     }
 
@@ -243,19 +244,17 @@ const PreCallPage = () => {
             />
             <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
                 <div className="w-full max-w-4xl">
-                    {/* Header */}
-                    <div className="text-center mb-10">
-                        <Button
-                            variant="ghost"
-                            onClick={() => {
-                                stopPreviewStream();
-                                navigate("/meeting-entry");
-                            }}
-                            className="absolute top-4 left-4 text-white hover:bg-gray-800">
-                            <ArrowLeft className="w-4 h-4 mr-2" />
-                            Back
-                        </Button>
-                    </div>
+                    {/* Back Button */}
+                    <Button
+                        variant="ghost"
+                        onClick={() => {
+                            stopPreviewStream();
+                            navigate("/meeting-entry");
+                        }}
+                        className="text-white hover:bg-gray-800 mb-4">
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back
+                    </Button>
                     <div className="text-center mb-8">
                         <h1 className="text-3xl font-bold text-white mb-2">Ready to join?</h1>
                         <p className="text-gray-300">
