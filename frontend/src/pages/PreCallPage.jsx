@@ -5,6 +5,7 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
+import { silence, black } from "../utils/mediaHelpers";
 
 const PreCallPage = () => {
     const { meetingCode } = useParams();
@@ -62,25 +63,6 @@ const PreCallPage = () => {
             window.removeEventListener("popstate", blockNav);
         };
     }, []);
-
-    const silence = () => {
-        const ctx = new AudioContext()
-        const oscillator = ctx.createOscillator()
-        const dst = oscillator.connect(ctx.createMediaStreamDestination())
-        oscillator.start()
-        ctx.resume()
-        const track = Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
-        oscillator.stop()
-        ctx.close().catch(() => { })
-        return track
-    }
-
-    const black = ({ width = 640, height = 480 } = {}) => {
-        const canvas = Object.assign(document.createElement("canvas"), { width, height })
-        canvas.getContext('2d').fillRect(0, 0, width, height)
-        const stream = canvas.captureStream()
-        return Object.assign(stream.getVideoTracks()[0], { enabled: false })
-    }
 
     const getPermissions = async () => {
         // If browser lacks support, disable everything immediately

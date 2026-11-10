@@ -1,4 +1,4 @@
-import { Video, VideoOff, Mic, Mic2, MicOff, Camera, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus, Settings, Link2, WifiOff, Loader2 } from "lucide-react";
+import { Video, VideoOff, Mic, Mic2, MicOff, Camera, PhoneOff, MessageSquare, Users, Monitor, MonitorOff, Copy, Volume2, VolumeX, UserPlus, Settings, Link2, WifiOff, Loader2, Shield, Lock, Unlock, UserX, Wifi } from "lucide-react";
 import Button from "../components/Button";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
@@ -8,6 +8,8 @@ import ChatPanel from "../components/ChatPanel";
 import ConfirmModal from "../components/ConfirmModal";
 import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
+import { silence, black } from "../utils/mediaHelpers";
+import ParticipantTile from "../components/ParticipantTile";
 
 const server_url = import.meta.env.VITE_SERVER_URL;
 const peerConfigConnections = {
@@ -100,6 +102,17 @@ const VideoCallPage = () => {
     const joiningTimeoutRef = useRef(null);
     const isReconnectingRef = useRef(false);
 
+    // Connection quality (#32)
+    const [connectionQuality, setConnectionQuality] = useState({ quality: 'good', rtt: 0 });
+    const statsIntervalRef = useRef(null);
+
+    // Host controls (#34)
+    const [waitingUsers, setWaitingUsers] = useState([]);
+
+    // Meeting password/lock (#36)
+    const [roomSettings, setRoomSettings] = useState({ hasPassword: false, isLocked: false });
+    const [passwordInput, setPasswordInput] = useState('');
+    const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
     useEffect(() => {
         // Block back navigation
@@ -341,26 +354,6 @@ const VideoCallPage = () => {
             }
         }
     }, [participants]);
-
-    const silence = () => {
-        const ctx = new AudioContext()
-        const oscillator = ctx.createOscillator()
-        const dst = oscillator.connect(ctx.createMediaStreamDestination())
-        oscillator.start()
-        ctx.resume()
-        const track = Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
-        // Stop oscillator and close AudioContext to prevent resource leaks
-        oscillator.stop()
-        ctx.close().catch(() => { })
-        return track
-    }
-
-    const black = ({ width = 640, height = 480 } = {}) => {
-        let canvas = Object.assign(document.createElement("canvas"), { width, height })
-        canvas.getContext('2d').fillRect(0, 0, width, height)
-        let stream = canvas.captureStream()
-        return Object.assign(stream.getVideoTracks()[0], { enabled: false })
-    }
 
     const getDisplayMedia = () => {
         if (screenShare && navigator.mediaDevices?.getDisplayMedia) {
@@ -675,6 +668,10 @@ const VideoCallPage = () => {
             socket.off('user-media-state-changed');
             socket.off('user-left');
             socket.off('user-joined');
+            socket.off('force-mute');
+            socket.off('force-kick');
+            socket.off('waiting-room-update');
+            socket.off('room-settings-update');
 
             socket.on('chat-message', addMessage);
 
@@ -824,6 +821,32 @@ const VideoCallPage = () => {
                     });
                 }
             });
+
+            // --- Phase 4: Host controls listeners (#34) ---
+            socket.on('force-mute', () => {
+                localStreamRef.current?.getAudioTracks().forEach(t => t.enabled = false);
+                setAudio(false);
+                socketRef.current?.emit('update-media-state', { video, audio: false });
+                setToastMessage('Host muted you');
+                setTimeout(() => setToastMessage(''), 3000);
+            });
+
+            socket.on('force-kick', () => {
+                setToastMessage('You were removed by the host');
+                setTimeout(() => {
+                    handleEndCall();
+                }, 1500);
+            });
+
+            // --- Phase 4: Waiting room listeners (#35) ---
+            socket.on('waiting-room-update', (users) => {
+                setWaitingUsers(users || []);
+            });
+
+            // --- Phase 4: Room settings listeners (#36) ---
+            socket.on('room-settings-update', (settings) => {
+                setRoomSettings(settings);
+            });
         });
     };
 
@@ -889,12 +912,83 @@ const VideoCallPage = () => {
         setIsMoreOpen(!isMoreOpen);
     };
 
+    // --- Connection Quality Monitoring (#32) ---
+    useEffect(() => {
+        statsIntervalRef.current = setInterval(() => {
+            const pcs = Object.values(connectionsRef.current);
+            if (pcs.length === 0) return;
+            // Use the first peer connection to measure quality
+            const pc = pcs[0];
+            if (!pc || pc.connectionState === 'closed') return;
+            pc.getStats().then(stats => {
+                let rtt = 0;
+                let packetLoss = 0;
+                stats.forEach(report => {
+                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                        rtt = report.currentRoundTripTime ? Math.round(report.currentRoundTripTime * 1000) : 0;
+                    }
+                    if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                        const lost = report.packetsLost || 0;
+                        const received = report.packetsReceived || 1;
+                        packetLoss = Math.round((lost / (lost + received)) * 100);
+                    }
+                });
+                let quality = 'good';
+                if (rtt > 300 || packetLoss > 5) quality = 'poor';
+                else if (rtt > 150 || packetLoss > 2) quality = 'fair';
+                setConnectionQuality({ quality, rtt });
+            }).catch(() => {});
+        }, 3000);
+
+        return () => {
+            if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
+        };
+    }, []);
+
+    // --- Host Action Handlers (#34) ---
+    const handleMuteParticipant = (targetSocketId) => {
+        socketRef.current?.emit('mute-participant', { targetSocketId });
+        setToastMessage('Participant muted');
+        setTimeout(() => setToastMessage(''), 2000);
+    };
+
+    const handleKickParticipant = (targetSocketId) => {
+        socketRef.current?.emit('kick-participant', { targetSocketId });
+        setToastMessage('Participant removed');
+        setTimeout(() => setToastMessage(''), 2000);
+    };
+
+    // --- Waiting Room Handlers (#35) ---
+    const handleAdmitUser = (targetSocketId) => {
+        socketRef.current?.emit('admit-user', { targetSocketId, roomUrl: meetingCode });
+    };
+
+    const handleRejectUser = (targetSocketId) => {
+        socketRef.current?.emit('reject-user', { targetSocketId, roomUrl: meetingCode });
+    };
+
+    // --- Room Password/Lock Handlers (#36) ---
+    const handleSetPassword = () => {
+        socketRef.current?.emit('set-room-password', { password: passwordInput });
+        setShowPasswordDialog(false);
+        setToastMessage(passwordInput ? 'Meeting password set' : 'Meeting password removed');
+        setPasswordInput('');
+        setTimeout(() => setToastMessage(''), 2000);
+    };
+
+    const handleToggleLock = () => {
+        socketRef.current?.emit('toggle-room-lock');
+        setToastMessage(roomSettings.isLocked ? 'Meeting unlocked' : 'Meeting locked');
+        setTimeout(() => setToastMessage(''), 2000);
+    };
+
     const handleEndCall = () => {
         // Stop all media tracks immediately
         stopAllMediaStreams();
 
         // Clear timer
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
 
         // Close all peer connections
         Object.values(connectionsRef.current).forEach(pc => pc.close());
@@ -1052,6 +1146,22 @@ const VideoCallPage = () => {
                     </div>
 
                     <div className="flex items-center space-x-2">
+                        {/* Connection Quality Indicator (#32) */}
+                        <div className="flex items-center space-x-1 mr-1" title={`RTT: ${connectionQuality.rtt}ms - ${connectionQuality.quality}`}>
+                            <span className={`w-2 h-2 rounded-full ${
+                                connectionQuality.quality === 'good' ? 'bg-green-400' :
+                                connectionQuality.quality === 'fair' ? 'bg-yellow-400' : 'bg-red-400'
+                            }`} />
+                            <span className={`text-xs font-mono hidden sm:inline ${
+                                connectionQuality.quality === 'good' ? 'text-green-400' :
+                                connectionQuality.quality === 'fair' ? 'text-yellow-400' : 'text-red-400'
+                            }`}>
+                                {connectionQuality.rtt}ms
+                            </span>
+                        </div>
+                        {roomSettings.isLocked && (
+                            <Lock className="w-3.5 h-3.5 text-yellow-400" title="Meeting locked" />
+                        )}
                         <span className="text-gray-300 text-sm">
                             {participantCount} {participantText}
                         </span>
@@ -1151,69 +1261,26 @@ const VideoCallPage = () => {
 
                                 {/* Render Video ON Participants */}
                                 {layoutData.visibleVideoOnParticipants.map((participant) => (
-                                    <div
+                                    <ParticipantTile
                                         key={`participant-on-${participant.id}`}
-                                        className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
-                                    >
-                                        {participant.video ? (
-                                            getParticipantVideoElement(participant)
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
-                                                <div className="w-24 h-24 bg-gray-600 rounded-full flex items-center justify-center">
-                                                    <span className="text-2xl font-bold text-white">
-                                                        {getInitials(participant.name)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                                            {participant.name}
-                                            {participant.isMe && " (You)"}
-                                            {participant.isHost && (
-                                                <span className="ml-1 text-xs text-blue-400">
-                                                    (Host)
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {!participant.audio && (
-                                            <div className="absolute top-2 right-2 bg-red-600 rounded-full p-1.5">
-                                                <MicOff className="w-4 h-4 text-white" />
-                                            </div>
-                                        )}
-                                    </div>
+                                        participant={participant}
+                                        spanClass={getParticipantSpanClass()}
+                                        getParticipantVideoElement={getParticipantVideoElement}
+                                        getInitials={getInitials}
+                                        isVideoOn={true}
+                                    />
                                 ))}
 
                                 {/* Render Video OFF Participants */}
                                 {layoutData.visibleVideoOffParticipants.map((participant) => (
-                                    <div
+                                    <ParticipantTile
                                         key={`participant-off-${participant.id}`}
-                                        className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
-                                    >
-                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
-                                            <div className="w-20 h-20 bg-gray-600 rounded-full flex items-center justify-center">
-                                                <span className="text-2xl font-bold text-white">
-                                                    {getInitials(participant.name)}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                                            {participant.name}
-                                            {participant.isHost && (
-                                                <span className="ml-1 text-xs text-blue-400">
-                                                    (Host)
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {!participant.audio && (
-                                            <div className="absolute top-2 right-2 bg-red-600 rounded-full p-1.5">
-                                                <MicOff className="w-4 h-4 text-white" />
-                                            </div>
-                                        )}
-                                    </div>
+                                        participant={participant}
+                                        spanClass={getParticipantSpanClass()}
+                                        getParticipantVideoElement={getParticipantVideoElement}
+                                        getInitials={getInitials}
+                                        isVideoOn={false}
+                                    />
                                 ))}
 
                                 {/* Overflow Indicator */}
@@ -1332,44 +1399,97 @@ const VideoCallPage = () => {
                     )}
                 </div>
 
-                {/* Participants Panel */}
+                {/* Participants Panel — dark mode with host controls (#26, #34, #35) */}
                 {isParticipantsOpen && (
-                    <div className="fixed right-4 top-16 w-64 bg-white rounded-lg shadow-2xl z-50 max-h-96 overflow-y-auto">
-                        <div className="p-4 border-b border-gray-200">
-                            <h3 className="font-semibold text-gray-900">
+                    <div className="fixed right-4 top-16 w-72 bg-gray-800 rounded-lg shadow-2xl z-50 max-h-[28rem] overflow-y-auto border border-gray-700">
+                        <div className="p-4 border-b border-gray-700">
+                            <h3 className="font-semibold text-white">
                                 Participants ({participantCount})
                             </h3>
                         </div>
+
+                        {/* Waiting Room Section - Host only (#35) */}
+                        {initialState.isHost && waitingUsers.length > 0 && (
+                            <div className="p-3 border-b border-gray-700 bg-yellow-900/20">
+                                <p className="text-xs font-semibold text-yellow-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <Shield className="w-3.5 h-3.5" />
+                                    Waiting Room ({waitingUsers.length})
+                                </p>
+                                {waitingUsers.map((user) => (
+                                    <div key={`waiting-${user.socketId}`} className="flex items-center justify-between p-2 rounded hover:bg-gray-700/50">
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-7 h-7 bg-yellow-600 rounded-full flex items-center justify-center">
+                                                <span className="text-xs font-bold text-white">{getInitials(user.userName)}</span>
+                                            </div>
+                                            <span className="text-sm text-white">{user.userName}</span>
+                                        </div>
+                                        <div className="flex space-x-1">
+                                            <button
+                                                onClick={() => handleAdmitUser(user.socketId)}
+                                                className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                                            >
+                                                Admit
+                                            </button>
+                                            <button
+                                                onClick={() => handleRejectUser(user.socketId)}
+                                                className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                            >
+                                                Deny
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="p-2">
                             {participants.map((participant) => (
                                 <div
                                     key={`panel-${participant.id}`}
-                                    className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                                    className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded">
                                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                                         <span className="text-sm font-bold text-white">
                                             {getInitials(participant.name)}
                                         </span>
                                     </div>
 
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-gray-900">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-white truncate">
                                             {participant.name}
                                             {participant.isMe && " (You)"}
                                             {participant.isHost && (
-                                                <span className="text-xs text-blue-600 ml-1">
+                                                <span className="text-xs text-blue-400 ml-1">
                                                     (Host)
                                                 </span>
                                             )}
                                         </p>
                                     </div>
 
-                                    <div className="flex space-x-1">
+                                    <div className="flex items-center space-x-1">
                                         {!participant.audio && (
-                                            <MicOff className="w-4 h-4 text-red-500" />
+                                            <MicOff className="w-4 h-4 text-red-400" />
                                         )}
                                         {!participant.video && (
-                                            <VideoOff className="w-4 h-4 text-gray-500" />
+                                            <VideoOff className="w-4 h-4 text-gray-400" />
+                                        )}
+                                        {/* Host controls — only show for other participants */}
+                                        {initialState.isHost && !participant.isMe && (
+                                            <>
+                                                <button
+                                                    onClick={() => handleMuteParticipant(participant.socketId)}
+                                                    className="p-1 hover:bg-gray-600 rounded transition-colors"
+                                                    title="Mute participant"
+                                                >
+                                                    <MicOff className="w-3.5 h-3.5 text-yellow-400" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleKickParticipant(participant.socketId)}
+                                                    className="p-1 hover:bg-gray-600 rounded transition-colors"
+                                                    title="Remove participant"
+                                                >
+                                                    <UserX className="w-3.5 h-3.5 text-red-400" />
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -1522,6 +1642,67 @@ const VideoCallPage = () => {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Host Controls Section (#36) */}
+                            {initialState.isHost && (
+                                <>
+                                    {/* Divider */}
+                                    <div className="border-t border-gray-700"></div>
+
+                                    <div className="space-y-2 sm:space-y-3">
+                                        <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">Host Controls</p>
+
+                                        {/* Lock Meeting */}
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs sm:text-sm font-medium text-white truncate">Lock Meeting</p>
+                                                <p className="text-[10px] sm:text-xs text-gray-400 truncate">Prevent new participants</p>
+                                            </div>
+                                            <button
+                                                onClick={handleToggleLock}
+                                                role="switch"
+                                                aria-checked={roomSettings.isLocked}
+                                                aria-label="Lock Meeting"
+                                                className={`relative w-10 sm:w-11 h-5 sm:h-6 rounded-full transition-colors flex-shrink-0 ${roomSettings.isLocked ? 'bg-red-600' : 'bg-gray-600'
+                                                    }`}
+                                            >
+                                                <span
+                                                    className={`absolute top-0.5 left-0.5 w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full transition-transform ${roomSettings.isLocked ? 'translate-x-5' : 'translate-x-0'
+                                                        }`}
+                                                />
+                                            </button>
+                                        </div>
+
+                                        {/* Set Password */}
+                                        <div className="space-y-1.5">
+                                            <p className="text-xs sm:text-sm font-medium text-white flex items-center gap-2">
+                                                <Lock className="w-3.5 h-3.5 text-yellow-400" />
+                                                Meeting Password
+                                            </p>
+                                            {showPasswordDialog ? (
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={passwordInput}
+                                                        onChange={(e) => setPasswordInput(e.target.value)}
+                                                        placeholder="Enter password"
+                                                        className="flex-1 bg-gray-700 text-white text-xs rounded px-2 py-1.5 border border-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                    />
+                                                    <button onClick={handleSetPassword} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Set</button>
+                                                    <button onClick={() => { setShowPasswordDialog(false); setPasswordInput(''); }} className="px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-500">Cancel</button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setShowPasswordDialog(true)}
+                                                    className="w-full text-left text-xs text-gray-300 bg-gray-700 rounded px-3 py-2 hover:bg-gray-600 transition-colors"
+                                                >
+                                                    {roomSettings.hasPassword ? '●●●● (Change)' : 'No password set — Click to add'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

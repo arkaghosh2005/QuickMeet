@@ -10,6 +10,7 @@ import SettingsPage from "./pages/SettingsPage";
 import PreCallPage from "./pages/PreCallPage";
 import VideoCallPage from "./pages/VideoCallPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Meeting code format: ABC-1234-XYZ (3 alphanum - 4 alphanum - 3 alphanum)
 const MEETING_CODE_REGEX = /^[A-Z0-9]{3}-[A-Z0-9]{4}-[A-Z0-9]{3}$/;
@@ -114,15 +115,17 @@ const AppRoutes = () => {
 // Main App Component
 function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <Router>
-          <div className="App">
-            <AppRoutes />
-          </div>
-        </Router>
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <Router>
+            <div className="App">
+              <AppRoutes />
+            </div>
+          </Router>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

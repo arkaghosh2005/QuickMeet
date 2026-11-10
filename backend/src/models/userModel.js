@@ -8,8 +8,5 @@ const userSchema = new Schema(
     }
 )
 
-// Ensure case-insensitive unique index on email
-userSchema.index({ email: 1 }, { unique: true });
-
 const User = mongoose.model("User", userSchema);
 export { User };
