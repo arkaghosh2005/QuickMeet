@@ -7,7 +7,7 @@ const router = Router();
 
 // Public routes
 router.route("/login").post(
-    body("email").isEmail().normalizeEmail().withMessage("Please provide a valid email"),
+    body("email").isEmail().normalizeEmail({ gmail_remove_dots: false }).withMessage("Please provide a valid email"),
     body("password").notEmpty().withMessage("Password is required"),
     login
 );
@@ -16,7 +16,7 @@ router.route("/signup").post(
     body("name").trim().notEmpty().withMessage("Name is required")
         .matches(/^[A-Za-z\s]+$/).withMessage("Name can only contain letters and spaces")
         .custom(val => val.trim().includes(" ")).withMessage("Please include both first and last name"),
-    body("email").isEmail().normalizeEmail().withMessage("Please provide a valid email"),
+    body("email").isEmail().normalizeEmail({ gmail_remove_dots: false }).withMessage("Please provide a valid email"),
     body("password").isLength({ min: 8 }).withMessage("Password must be at least 8 characters"),
     signup
 );
@@ -34,5 +34,29 @@ router.route("/history")
         body("meeting_id").notEmpty().withMessage("Meeting ID is required"),
         deleteFromHistory
     );
+
+// Profile update
+router.route("/profile").put(
+    authMiddleware,
+    body("name").trim().notEmpty().withMessage("Name is required")
+        .matches(/^[A-Za-z\s]+$/).withMessage("Name can only contain letters and spaces"),
+    body("email").isEmail().normalizeEmail({ gmail_remove_dots: false }).withMessage("Please provide a valid email"),
+    body("currentPassword").notEmpty().withMessage("Current password is required"),
+    updateProfile
+);
+
+// Password verification (for delete account flow)
+router.route("/verify-password").post(
+    authMiddleware,
+    body("password").notEmpty().withMessage("Password is required"),
+    verifyPassword
+);
+
+// Delete account
+router.route("/account").delete(
+    authMiddleware,
+    body("password").notEmpty().withMessage("Password is required"),
+    deleteAccount
+);
 
 export default router;
