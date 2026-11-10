@@ -133,4 +133,109 @@ const deleteFromHistory = async (req, res) => {
     }
 }
 
-export { login, signup, getUserHistory, addToHistory, deleteFromHistory };
+const updateProfile = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { name, email, currentPassword } = req.body;
+
+    try {
+        const user = await User.findOne({ email: req.user.email });
+        if (!user) {
+            return res.status(httpStatus.NOT_FOUND).json({ message: "User not found." });
+        }
+
+        // Verify current password
+        const isPasswordCorrect = await bcrypt.compare(currentPassword, user.password);
+        if (!isPasswordCorrect) {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Current password is incorrect." });
+        }
+
+        // Check if new email is already taken by another user
+        if (email !== user.email) {
+            const emailTaken = await User.findOne({ email });
+            if (emailTaken) {
+                return res.status(httpStatus.CONFLICT).json({ message: "Email is already in use by another account." });
+            }
+        }
+
+        // Update fields
+        user.name = name;
+        user.email = email;
+        await user.save();
+
+        // Issue a new token with updated info
+        const token = jwt.sign(
+            { email: user.email, name: user.name },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.status(httpStatus.OK).json({
+            message: "Profile updated successfully.",
+            token,
+            user: { name: user.name, email: user.email }
+        });
+    } catch (e) {
+        res.status(500).json({ message: "Something went wrong. Please try again later." });
+    }
+}
+
+const verifyPassword = async (req, res) => {
+    const { password } = req.body;
+
+    if (!password) {
+        return res.status(400).json({ message: "Password is required." });
+    }
+
+    try {
+        const user = await User.findOne({ email: req.user.email });
+        if (!user) {
+            return res.status(httpStatus.NOT_FOUND).json({ message: "User not found." });
+        }
+
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
+        if (!isPasswordCorrect) {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Incorrect password." });
+        }
+
+        res.status(httpStatus.OK).json({ message: "Password verified." });
+    } catch (e) {
+        res.status(500).json({ message: "Something went wrong. Please try again later." });
+    }
+}
+
+const deleteAccount = async (req, res) => {
+    const { password } = req.body;
+
+    if (!password) {
+        return res.status(400).json({ message: "Password is required." });
+    }
+
+    try {
+        const user = await User.findOne({ email: req.user.email });
+        if (!user) {
+            return res.status(httpStatus.NOT_FOUND).json({ message: "User not found." });
+        }
+
+        // Verify password one final time
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
+        if (!isPasswordCorrect) {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Incorrect password." });
+        }
+
+        // Delete all meeting history for this user
+        await Meeting.deleteMany({ user_id: user.email });
+
+        // Delete the user
+        await User.findByIdAndDelete(user._id);
+
+        res.status(httpStatus.OK).json({ message: "Account deleted successfully." });
+    } catch (e) {
+        res.status(500).json({ message: "Something went wrong. Please try again later." });
+    }
+}
+
+export { login, signup, getUserHistory, addToHistory, deleteFromHistory, updateProfile, verifyPassword, deleteAccount };
