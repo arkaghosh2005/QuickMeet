@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import Button from '../Button';
+import Button from '../../components/Button';
 
 describe('Button', () => {
     it('renders with children text', () => {
@@ -32,3 +32,4 @@ describe('Button', () => {
         expect(button.className).toContain('bg-red');
     });
 });
+

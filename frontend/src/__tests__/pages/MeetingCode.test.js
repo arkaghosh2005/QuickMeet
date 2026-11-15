@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatMeetingCode } from '../MeetingEntryPage';
+import { formatMeetingCode } from '../../pages/MeetingEntryPage';
 
 // Extract the meeting code generation logic for testing
 const generateMeetingCode = () => {
@@ -71,3 +71,4 @@ describe('formatMeetingCode (Automatic Dash Placement)', () => {
         expect(formatMeetingCode('http://localhost:5173/ABC1234XYZ')).toBe('ABC-1234-XYZ');
     });
 });
+
