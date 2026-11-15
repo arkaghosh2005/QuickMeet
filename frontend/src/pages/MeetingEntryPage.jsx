@@ -108,6 +108,9 @@ const MeetingEntryPage = () => {
 
     return (
         <>
+            <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg">
+                Skip to content
+            </a>
             <SEO
                 title="Meeting Dashboard"
                 description="Start a new video meeting or join an existing one. Create rooms, view meeting history, and manage your QuickMeet experience."
@@ -148,7 +151,7 @@ const MeetingEntryPage = () => {
                 </header>
 
                 {/* Main Content */}
-                <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                     <div className="text-center mb-12">
                         <h1 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                             Ready to connect?

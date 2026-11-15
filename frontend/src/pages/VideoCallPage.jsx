@@ -937,7 +937,7 @@ const VideoCallPage = () => {
                 if (rtt > 300 || packetLoss > 5) quality = 'poor';
                 else if (rtt > 150 || packetLoss > 2) quality = 'fair';
                 setConnectionQuality({ quality, rtt });
-            }).catch(() => {});
+            }).catch(() => { });
         }, 3000);
 
         return () => {
@@ -1148,14 +1148,12 @@ const VideoCallPage = () => {
                     <div className="flex items-center space-x-2">
                         {/* Connection Quality Indicator (#32) */}
                         <div className="flex items-center space-x-1 mr-1" title={`RTT: ${connectionQuality.rtt}ms - ${connectionQuality.quality}`}>
-                            <span className={`w-2 h-2 rounded-full ${
-                                connectionQuality.quality === 'good' ? 'bg-green-400' :
-                                connectionQuality.quality === 'fair' ? 'bg-yellow-400' : 'bg-red-400'
-                            }`} />
-                            <span className={`text-xs font-mono hidden sm:inline ${
-                                connectionQuality.quality === 'good' ? 'text-green-400' :
-                                connectionQuality.quality === 'fair' ? 'text-yellow-400' : 'text-red-400'
-                            }`}>
+                            <span className={`w-2 h-2 rounded-full ${connectionQuality.quality === 'good' ? 'bg-green-400' :
+                                    connectionQuality.quality === 'fair' ? 'bg-yellow-400' : 'bg-red-400'
+                                }`} />
+                            <span className={`text-xs font-mono hidden sm:inline ${connectionQuality.quality === 'good' ? 'text-green-400' :
+                                    connectionQuality.quality === 'fair' ? 'text-yellow-400' : 'text-red-400'
+                                }`}>
                                 {connectionQuality.rtt}ms
                             </span>
                         </div>
@@ -1179,7 +1177,7 @@ const VideoCallPage = () => {
 
                 {/* Connection Status Bar */}
                 {connectionStatus !== 'connected' && (
-                    <div className={`px-4 py-2 flex items-center justify-center space-x-2 text-sm font-medium ${connectionStatus === 'reconnecting'
+                    <div role="alert" aria-live="assertive" className={`px-4 py-2 flex items-center justify-center space-x-2 text-sm font-medium ${connectionStatus === 'reconnecting'
                         ? 'bg-yellow-600/90 text-white'
                         : 'bg-red-600/90 text-white'
                         }`}>
@@ -1203,9 +1201,9 @@ const VideoCallPage = () => {
                     </div>
                 )}
 
-                {/* Toast Notification */}
+                {/* Toast Notification (#37 — aria-live) */}
                 {toastMessage && (
-                    <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg shadow-2xl z-50 flex items-center space-x-2 transition-all duration-300 ease-in-out animate-bounce-in">
+                    <div role="status" aria-live="polite" className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg shadow-2xl z-50 flex items-center space-x-2 transition-all duration-300 ease-in-out animate-bounce-in">
                         <div className="bg-white rounded-full p-1">
                             <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

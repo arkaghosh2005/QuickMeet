@@ -74,6 +74,9 @@ const LandingPage = () => {
 
     return (
         <>
+            <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg">
+                Skip to content
+            </a>
             <SEO
                 title="Home"
                 description="QuickMeet - Professional video meetings made simple. Join or host HD video calls with screen sharing, real-time chat, and peer-to-peer encryption. Free to use."
@@ -123,7 +126,7 @@ const LandingPage = () => {
             </header>
 
             {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Hero Section */}
                 <div className="text-center mb-16">
                     <h1

@@ -7,6 +7,7 @@ import SEO from '../components/SEO';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../context/AuthContext';
+import Skeleton from '../components/Skeleton';
 
 const MeetingHistoryPage = () => {
     const [meetings, setMeetings] = useState([]);
@@ -173,13 +174,26 @@ const MeetingHistoryPage = () => {
                     {/* Divider */}
                     <div className={`border-t ${isDarkMode ? "border-gray-700" : "border-gray-200"} mb-8`}></div>
 
-                    {/* Loading State */}
+                    {/* Loading State — Skeleton rows (#25) */}
                     {loading && (
-                        <div className="flex flex-col items-center justify-center py-12">
-                            <Loader2 className={`w-12 h-12 animate-spin ${isDarkMode ? "text-blue-400" : "text-blue-600"}`} />
-                            <p className={`mt-4 ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
-                                Loading your meeting history...
-                            </p>
+                        <div className="space-y-4">
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className={`${isDarkMode ? "bg-gray-700/50" : "bg-gray-50"} rounded-xl p-5`}>
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                        <div className="flex items-start space-x-4">
+                                            <Skeleton className="w-12 h-12 rounded-full flex-shrink-0" />
+                                            <div className="space-y-2 flex-1">
+                                                <Skeleton className="h-5 w-36" />
+                                                <div className="flex gap-3">
+                                                    <Skeleton className="h-4 w-24" />
+                                                    <Skeleton className="h-4 w-16" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <Skeleton className="h-9 w-32" />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
 

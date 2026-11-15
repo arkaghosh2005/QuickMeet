@@ -24,8 +24,14 @@ const PreCallPage = () => {
     const [aspectRatio, setAspectRatio] = useState(16 / 9);
 
     // User Toggles
-    const [video, setVideo] = useState(true);
-    const [audio, setAudio] = useState(true);
+    const [video, setVideo] = useState(() => {
+        const saved = localStorage.getItem('quickmeet_default_video');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [audio, setAudio] = useState(() => {
+        const saved = localStorage.getItem('quickmeet_default_audio');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
 
     const stopPreviewStream = () => {
         isMountedRef.current = false;

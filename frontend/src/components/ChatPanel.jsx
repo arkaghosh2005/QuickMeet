@@ -11,6 +11,8 @@ const ChatPanel = ({
 }) => {
     const [newMessage, setNewMessage] = useState('');
     const messagesEndRef = useRef(null);
+    const panelRef = useRef(null);
+    const inputRef = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -20,6 +22,41 @@ const ChatPanel = ({
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // Focus trap + auto-focus input when opened (#37)
+    useEffect(() => {
+        if (!isOpen) return;
+        inputRef.current?.focus();
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                onClose();
+                return;
+            }
+            if (e.key === 'Tab') {
+                const focusable = panelRef.current?.querySelectorAll(
+                    'button, input, [tabindex]:not([tabindex="-1"])'
+                );
+                if (!focusable || focusable.length === 0) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey) {
+                    if (document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
 
     const handleSendMessage = (event) => {
         event.preventDefault();
@@ -53,7 +90,7 @@ const ChatPanel = ({
     }
 
     return (
-        <div className="h-full w-full bg-gray-800 flex flex-col">
+        <div ref={panelRef} className="h-full w-full bg-gray-800 flex flex-col" role="region" aria-label="Meeting Chat">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
                 <h3 className="font-semibold text-white">Meeting Chat</h3>
@@ -108,6 +145,7 @@ const ChatPanel = ({
             <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-700">
                 <div className="flex space-x-2">
                     <input
+                        ref={inputRef}
                         type="text"
                         value={newMessage}
                         onChange={handleMessageChange}
