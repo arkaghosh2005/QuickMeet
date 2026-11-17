@@ -112,6 +112,16 @@ const PreCallPage = () => {
             setTimeout(() => setWaitingState('idle'), 3000);
         });
 
+        socket.on('room-expired', () => {
+            setWaitingState('idle');
+            stopPreviewStream();
+            if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
+            socket.removeAllListeners();
+            socket.disconnect();
+            socketRef.current = null;
+            navigate('/meeting-entry', { replace: true });
+        });
+
         return () => {
             if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
             socket.removeAllListeners();

@@ -673,6 +673,7 @@ const VideoCallPage = () => {
             socket.off('waiting-room-update');
             socket.off('room-settings-update');
             socket.off('join-rejected');
+            socket.off('room-expired');
 
             // If join is rejected (user bypassed waiting room), go back
             socket.on('join-rejected', () => {
@@ -681,6 +682,15 @@ const VideoCallPage = () => {
                     handleEndCall();
                     navigate(`/pre-call/${meetingCode}`, { replace: true });
                 }, 1500);
+            });
+
+            // Room expired after 6 hours
+            socket.on('room-expired', () => {
+                setToastMessage('This meeting has ended — 6 hour limit reached');
+                setTimeout(() => {
+                    handleEndCall();
+                    navigate('/meeting-entry', { replace: true });
+                }, 2000);
             });
 
             socket.on('chat-message', addMessage);

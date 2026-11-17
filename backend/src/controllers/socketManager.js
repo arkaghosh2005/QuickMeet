@@ -21,8 +21,11 @@ let waitingRoom = {}      // { [roomKey]: [{ socketId, userName, userRole }] }
 let roomPasswords = {}    // { [roomKey]: string | null }
 let lockedRooms = {}      // { [roomKey]: boolean }
 let admittedUsers = {}    // { [roomKey]: Set<userId> }
+let roomCreatedAt = {}    // { [roomKey]: timestamp }
+let roomDurationTimers = {} // { [roomKey]: timeoutId }
 
-const ROOM_EXPIRY_TIME = 60 * 60 * 1000; // 1 hour in milliseconds
+const ROOM_EXPIRY_TIME = 60 * 60 * 1000; // 1 hour in milliseconds (empty room cleanup)
+const MAX_ROOM_DURATION = 6 * 60 * 60 * 1000; // 6 hours max meeting duration
 const MAX_MESSAGES_PER_ROOM = 500;
 
 // Export function to get all active room codes
@@ -69,6 +72,26 @@ export const connectToSocket = (server) => {
         if (roomPasswords[roomUrl]) delete roomPasswords[roomUrl];
         if (lockedRooms[roomUrl]) delete lockedRooms[roomUrl];
         if (admittedUsers[roomUrl]) delete admittedUsers[roomUrl];
+        if (roomCreatedAt[roomUrl]) delete roomCreatedAt[roomUrl];
+        if (roomDurationTimers[roomUrl]) {
+            clearTimeout(roomDurationTimers[roomUrl]);
+            delete roomDurationTimers[roomUrl];
+        }
+    };
+
+    // Force-expire a room after max duration — notify all users and clean up
+    const expireRoom = (roomUrl) => {
+        if (connections[roomUrl]) {
+            connections[roomUrl].forEach(user =>
+                io.to(user.socketId).emit("room-expired")
+            );
+        }
+        if (waitingRoom[roomUrl]) {
+            waitingRoom[roomUrl].forEach(user =>
+                io.to(user.socketId).emit("room-expired")
+            );
+        }
+        cleanupRoom(roomUrl);
     };
 
     const scheduleRoomCleanup = (roomUrl) => {
@@ -128,6 +151,14 @@ export const connectToSocket = (server) => {
             userRole = (userRole === 'host' || userRole === 'participant') ? userRole : 'participant';
             if (!connections[roomUrl]) {
                 connections[roomUrl] = [];
+
+                // Start 6-hour max duration timer for this room
+                if (!roomCreatedAt[roomUrl]) {
+                    roomCreatedAt[roomUrl] = Date.now();
+                    roomDurationTimers[roomUrl] = setTimeout(() => {
+                        expireRoom(roomUrl);
+                    }, MAX_ROOM_DURATION);
+                }
             }
 
             if (roomCleanupTimers[roomUrl]) {
@@ -163,6 +194,12 @@ export const connectToSocket = (server) => {
             }
 
             connections[roomUrl].push({ socketId: socket.id, userName, userRole, video, audio, _userId: userId });
+
+            // Consume admission — user has joined, no longer needs admission tracking
+            if (admittedUsers[roomUrl]) {
+                admittedUsers[roomUrl].delete(userId);
+                if (admittedUsers[roomUrl].size === 0) delete admittedUsers[roomUrl];
+            }
 
             connections[roomUrl].forEach(user =>
                 io.to(user.socketId).emit("user-joined", socket.id, connections[roomUrl])
@@ -228,13 +265,6 @@ export const connectToSocket = (server) => {
 
         // --- HOST CONTROLS (#34) ---
         socket.on("mute-participant", ({ targetSocketId }) => {
-            // Clean up from admittedUsers
-            const dcUserId = socket.user?.id || socket.user?.name;
-            for (const [room, users] of Object.entries(admittedUsers)) {
-                if (dcUserId) users.delete(dcUserId);
-                if (users.size === 0) delete admittedUsers[room];
-            }
-
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
             );
@@ -245,13 +275,6 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("kick-participant", ({ targetSocketId }) => {
-            // Clean up from admittedUsers
-            const dcUserId = socket.user?.id || socket.user?.name;
-            for (const [room, users] of Object.entries(admittedUsers)) {
-                if (dcUserId) users.delete(dcUserId);
-                if (users.size === 0) delete admittedUsers[room];
-            }
-
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
             );
@@ -323,12 +346,6 @@ export const connectToSocket = (server) => {
 
         // --- MEETING PASSWORD / LOCK (#36) ---
         socket.on("set-room-password", ({ password }) => {
-            // Clean up from admittedUsers
-            const dcUserId = socket.user?.id || socket.user?.name;
-            for (const [room, users] of Object.entries(admittedUsers)) {
-                if (dcUserId) users.delete(dcUserId);
-                if (users.size === 0) delete admittedUsers[room];
-            }
 
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
@@ -344,12 +361,6 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("toggle-room-lock", () => {
-            // Clean up from admittedUsers
-            const dcUserId = socket.user?.id || socket.user?.name;
-            for (const [room, users] of Object.entries(admittedUsers)) {
-                if (dcUserId) users.delete(dcUserId);
-                if (users.size === 0) delete admittedUsers[room];
-            }
 
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
