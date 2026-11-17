@@ -42,6 +42,7 @@ const VideoCallPage = () => {
     const screenStreamRef = useRef(null);
     const isCallActiveRef = useRef(true);
     const connectionsRef = useRef({});
+    const mediaReadyRef = useRef(false);
 
     // Get initial state from PreCallPage
     const initialState = location.state || {
@@ -50,6 +51,11 @@ const VideoCallPage = () => {
         audio: userData?.audio ?? true,
         isHost: userData?.isHost || false,
     };
+
+    // Refs to avoid stale closures in socket handlers
+    const videoRef = useRef(initialState.video);
+    const audioRef = useRef(initialState.audio);
+    const screenShareRef = useRef(false);
 
     // Device Permissions
     const [videoAvailable, setVideoAvailable] = useState(true);
@@ -190,6 +196,11 @@ const VideoCallPage = () => {
 
     // Update current user's audio/video/screenShare state in participants when toggled
     useEffect(() => {
+        // Keep refs in sync with state for use in socket handlers
+        videoRef.current = video;
+        audioRef.current = audio;
+        screenShareRef.current = screenShare;
+
         // Update participants state
         setParticipants(prev =>
             prev.map(participant => {
@@ -446,6 +457,30 @@ const VideoCallPage = () => {
         if (!audioOk) setAudio(false);
         setScreenAvailable(!!navigator.mediaDevices?.getDisplayMedia);
 
+        // Get real media stream BEFORE connecting to socket
+        // Always acquire available tracks; disable ones the user doesn't want.
+        // This ensures PCs get real tracks (not black+silence) so replaceTrack
+        // works immediately when the user toggles on.
+        const wantVideo = !!(initialState.video && videoOk);
+        const wantAudio = !!(initialState.audio && audioOk);
+        if (videoOk || audioOk) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: videoOk,
+                    audio: audioOk ? { echoCancellation, autoGainControl, noiseSuppression } : false,
+                });
+                // Disable tracks the user turned off in PreCallPage
+                if (!wantVideo) stream.getVideoTracks().forEach(t => t.enabled = false);
+                if (!wantAudio) stream.getAudioTracks().forEach(t => t.enabled = false);
+                localStreamRef.current = stream;
+                if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+            } catch (e) {
+                // Will fall back to black+silence in user-joined handler
+                if (import.meta.env.DEV) console.warn('Initial getUserMedia failed:', e);
+            }
+        }
+
+        mediaReadyRef.current = true;
         connectToSocketServer();
     };
 
@@ -488,6 +523,10 @@ const VideoCallPage = () => {
     };
 
     const getUserMedia = () => {
+        // Skip if getPermissions already obtained the initial stream
+        // (this prevents the useEffect from racing with getPermissions on mount)
+        if (!mediaReadyRef.current) return;
+
         const wantVideo = !!(video && videoAvailable);
         const wantAudio = !!(audio && audioAvailable);
 
@@ -643,7 +682,7 @@ const VideoCallPage = () => {
                 roomUrl: meetingCode,
                 userName: initialState.displayName,
                 userRole: initialState.isHost ? 'host' : 'participant',
-                video, audio,
+                video: videoRef.current, audio: audioRef.current,
             });
 
             const token = localStorage.getItem('token');
@@ -736,7 +775,7 @@ const VideoCallPage = () => {
                             return currentUser || {
                                 id: myId, socketId: myId, name: client.userName,
                                 isHost: client.userRole === 'host',
-                                audio, video, isScreenSharing: screenShare, isMe: true
+                                audio: audioRef.current, video: videoRef.current, isScreenSharing: screenShareRef.current, isMe: true
                             };
                         }
                         const existing = prev.find(p => p.socketId === client.socketId);
@@ -846,7 +885,7 @@ const VideoCallPage = () => {
             socket.on('force-mute', () => {
                 localStreamRef.current?.getAudioTracks().forEach(t => t.enabled = false);
                 setAudio(false);
-                socketRef.current?.emit('update-media-state', { video, audio: false });
+                socketRef.current?.emit('update-media-state', { video: videoRef.current, audio: false });
                 setToastMessage('Host muted you');
                 setTimeout(() => setToastMessage(''), 3000);
             });

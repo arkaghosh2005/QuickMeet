@@ -408,6 +408,18 @@ export const connectToSocket = (server) => {
                 }
             }
 
+            // Track if this user was the host before removing them
+            let wasHost = false;
+            let hostRoom = null;
+            for (const [roomKey, roomUsers] of Object.entries(connections)) {
+                const user = roomUsers.find(u => u.socketId === socket.id);
+                if (user && user.userRole === 'host') {
+                    wasHost = true;
+                    hostRoom = roomKey;
+                    break;
+                }
+            }
+
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
             );
@@ -418,6 +430,33 @@ export const connectToSocket = (server) => {
                 );
 
                 connections[room] = connections[room].filter(user => user.socketId !== socket.id);
+
+                // If host left and room still has users, open it fully
+                if (wasHost && room === hostRoom && connections[room].length > 0) {
+                    // Clear all restrictions
+                    delete lockedRooms[room];
+                    delete roomPasswords[room];
+
+                    // Auto-admit all waiting room users
+                    if (waitingRoom[room] && waitingRoom[room].length > 0) {
+                        waitingRoom[room].forEach(u => {
+                            const targetSock = io.sockets.sockets.get(u.socketId);
+                            const uid = targetSock?.user?.id || targetSock?.user?.name || u.socketId;
+                            if (!admittedUsers[room]) admittedUsers[room] = new Set();
+                            admittedUsers[room].add(uid);
+                            io.to(u.socketId).emit("admitted");
+                        });
+                        waitingRoom[room] = [];
+                    }
+
+                    // Notify remaining participants that room is now open
+                    connections[room].forEach(u =>
+                        io.to(u.socketId).emit("room-settings-update", {
+                            hasPassword: false,
+                            isLocked: false
+                        })
+                    );
+                }
 
                 if (connections[room].length === 0) {
                     scheduleRoomCleanup(room);
