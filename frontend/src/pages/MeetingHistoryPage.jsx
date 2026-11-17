@@ -144,7 +144,7 @@ const MeetingHistoryPage = () => {
             </header>
 
             {/* Main Content */}
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
                 {/* Common Big Background Container */}
                 <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"} rounded-2xl shadow-xl p-6 sm:p-8`}>
                     {/* Back Button */}
@@ -159,9 +159,9 @@ const MeetingHistoryPage = () => {
 
                     {/* Header Section */}
                     <div className="text-center mb-8">
-                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${isDarkMode ? "bg-gray-700" : "bg-orange-100"
+                        <div className={`w-14 h-14 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 ${isDarkMode ? "bg-gray-700" : "bg-orange-100"
                             }`}>
-                            <Users className="w-10 h-10 text-orange-600" />
+                            <Users className="w-7 h-7 sm:w-10 sm:h-10 text-orange-600" />
                         </div>
                         <h1 className={`text-3xl sm:text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                             Meeting History

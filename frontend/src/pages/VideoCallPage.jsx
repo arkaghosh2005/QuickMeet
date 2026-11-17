@@ -280,18 +280,18 @@ const VideoCallPage = () => {
         let gridClass;
 
         if (screenCount > 0) {
-            gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr";
+            gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 auto-rows-fr";
         } else if (count === 1) {
-            gridClass = "grid grid-cols-1 gap-4 h-full";
+            gridClass = "grid grid-cols-1 gap-2 sm:gap-4 h-full";
         } else if (count === 2) {
-            gridClass = "grid grid-cols-1 sm:grid-cols-2 gap-4 h-full sm:h-full";
+            gridClass = "grid grid-cols-2 gap-2 sm:gap-4 h-full";
         } else if (count <= 4) {
-            // Mobile: stack vertically with min height, Desktop: 2x2 grid
-            gridClass = "grid grid-cols-1 sm:grid-cols-2 gap-4 sm:grid-rows-2 sm:h-full";
+            // Mobile: 2x2 grid, Desktop: 2x2 grid
+            gridClass = "grid grid-cols-2 gap-2 sm:gap-4 sm:grid-rows-2 sm:h-full";
         } else if (count <= 6) {
-            gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:grid-rows-2 sm:h-full";
+            gridClass = "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 sm:grid-rows-2 sm:h-full";
         } else {
-            gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr";
+            gridClass = "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4 auto-rows-fr";
         }
 
         return {
@@ -1119,7 +1119,7 @@ const VideoCallPage = () => {
     const getGridClasses = () => {
         const { screenShareCount, participantGridClass } = layoutData;
         if (screenShareCount >= 1) {
-            return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr";
+            return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 auto-rows-fr";
         }
         return participantGridClass;
     };
@@ -1167,7 +1167,7 @@ const VideoCallPage = () => {
                 path={`/${meetingCode}`}
                 noIndex={true}
             />
-            <div className="h-screen bg-gray-900 flex flex-col">
+            <div className="h-[100dvh] bg-gray-900 flex flex-col">
                 {/* Loading overlay while connecting */}
                 {isJoining && (
                     <div className="absolute inset-0 z-50 bg-gray-900 flex flex-col items-center justify-center">
@@ -1177,14 +1177,14 @@ const VideoCallPage = () => {
                     </div>
                 )}
                 {/* Header */}
-                <header className="bg-gray-800 px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        <h1 className="text-white font-semibold">Meeting</h1>
-                        <span className="text-gray-400 text-sm font-mono bg-gray-700/50 px-2 py-0.5 rounded hidden sm:inline">
+                <header className="bg-gray-800 px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                        <h1 className="text-white font-semibold text-sm sm:text-base shrink-0">Meeting</h1>
+                        <span className="text-gray-400 text-xs sm:text-sm font-mono bg-gray-700/50 px-1.5 sm:px-2 py-0.5 rounded hidden md:inline">
                             {elapsedTime}
                         </span>
-                        <div className="flex items-center space-x-2">
-                            <span className="text-gray-300 text-sm font-mono">
+                        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                            <span className="text-gray-300 text-xs sm:text-sm font-mono truncate max-w-[80px] sm:max-w-none">
                                 {meetingCode}
                             </span>
                             <Button
@@ -1192,26 +1192,26 @@ const VideoCallPage = () => {
                                 variant="primary"
                                 size="sm"
                                 aria-label="Copy meeting code"
-                                className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
+                                className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0 shrink-0"
                             >
-                                <Copy className="w-4 h-4" />
+                                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </Button>
                             <Button
                                 onClick={copyMeetingLink}
                                 variant="primary"
                                 size="sm"
                                 aria-label="Copy meeting invite link"
-                                className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
+                                className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0 hidden sm:flex shrink-0"
                                 title="Copy meeting invite link"
                             >
-                                <Link2 className="w-4 h-4" />
+                                <Link2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </Button>
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                         {/* Connection Quality Indicator (#32) */}
-                        <div className="flex items-center space-x-1 mr-1" title={`RTT: ${connectionQuality.rtt}ms - ${connectionQuality.quality}`}>
+                        <div className="flex items-center gap-1 mr-0.5 sm:mr-1" title={`RTT: ${connectionQuality.rtt}ms - ${connectionQuality.quality}`}>
                             <span className={`w-2 h-2 rounded-full ${connectionQuality.quality === 'good' ? 'bg-green-400' :
                                     connectionQuality.quality === 'fair' ? 'bg-yellow-400' : 'bg-red-400'
                                 }`} />
@@ -1224,8 +1224,8 @@ const VideoCallPage = () => {
                         {roomSettings.isLocked && (
                             <Lock className="w-3.5 h-3.5 text-yellow-400" title="Meeting locked" />
                         )}
-                        <span className="text-gray-300 text-sm">
-                            {participantCount} {participantText}
+                        <span className="text-gray-300 text-xs sm:text-sm whitespace-nowrap">
+                            {participantCount} <span className="hidden sm:inline">{participantText}</span>
                         </span>
                         <Button
                             onClick={toggleParticipants}
@@ -1234,7 +1234,7 @@ const VideoCallPage = () => {
                             aria-label="Toggle participants panel"
                             className="!text-gray-300 !text-white !hover:!bg-blue-600 p-1 transition-all duration-200 hover:scale-110 active:scale-95 focus-visible:outline-none !outline-none !ring-0 !ring-offset-0"
                         >
-                            <Users className="w-4 h-4" />
+                            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </Button>
                     </div>
                 </header>
@@ -1267,7 +1267,7 @@ const VideoCallPage = () => {
 
                 {/* Toast Notification (#37 — aria-live) */}
                 {toastMessage && (
-                    <div role="status" aria-live="polite" className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg shadow-2xl z-50 flex items-center space-x-2 transition-all duration-300 ease-in-out animate-bounce-in">
+                    <div role="status" aria-live="polite" className="fixed top-14 sm:top-20 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg shadow-2xl z-50 flex items-center space-x-2 transition-all duration-300 ease-in-out animate-bounce-in max-w-[90vw]">
                         <div className="bg-white rounded-full p-1">
                             <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -1280,13 +1280,13 @@ const VideoCallPage = () => {
                 {/* Main Content */}
                 <div className="flex-1 flex overflow-hidden">
                     <div className={`flex-1 relative`}>
-                        <div className="h-full p-4 pb-20 md:pb-24 overflow-y-auto md:overflow-hidden">
+                        <div className="h-full p-2 sm:p-4 pb-16 sm:pb-20 md:pb-24 overflow-y-auto md:overflow-hidden">
                             <div className={`${getGridClasses()} min-h-full md:h-full`}>
                                 {/* Render Screen Shares First */}
                                 {layoutData.screenShares.map((share, index) => (
                                     <div
                                         key={`screen-${share.id}-${index}`}
-                                        className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[200px] sm:min-h-0 ${layoutData.screenShareCount === 1
+                                        className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[140px] sm:min-h-[200px] ${layoutData.screenShareCount === 1
                                             ? "lg:col-span-3 lg:row-span-2"
                                             : layoutData.screenShareCount === 2 && index < 2
                                                 ? "lg:col-span-3"
@@ -1314,9 +1314,9 @@ const VideoCallPage = () => {
                                             />
                                         )}
 
-                                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-3 py-1 rounded text-sm flex items-center gap-2">
-                                            <Monitor className="w-4 h-4" />
-                                            {share.name}'s Screen
+                                        <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 bg-black bg-opacity-70 text-white px-2 py-0.5 sm:px-3 sm:py-1 rounded text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
+                                            <Monitor className="w-3 h-3 sm:w-4 sm:h-4" />
+                                            <span className="truncate max-w-[100px] sm:max-w-none">{share.name}'s Screen</span>
                                         </div>
                                     </div>
                                 ))}
@@ -1350,11 +1350,11 @@ const VideoCallPage = () => {
                                     <div
                                         key="overflow-indicator"
                                         onClick={toggleParticipants}
-                                        className={`relative bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors min-h-[200px] sm:min-h-0 ${getParticipantSpanClass()}`}
+                                        className={`relative bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors min-h-[120px] sm:min-h-[180px] md:min-h-0 ${getParticipantSpanClass()}`}
                                     >
                                         <div className="w-full h-full flex flex-col items-center justify-center">
-                                            <UserPlus className="w-12 h-12 text-gray-400 mb-3" />
-                                            <span className="text-4xl font-bold text-white mb-2">
+                                            <UserPlus className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mb-2 sm:mb-3" />
+                                            <span className="text-2xl sm:text-4xl font-bold text-white mb-1 sm:mb-2">
                                                 +{layoutData.overflowCount}
                                             </span>
                                             <span className="text-sm text-gray-300">
@@ -1367,17 +1367,17 @@ const VideoCallPage = () => {
                         </div>
 
                         {/* Controls */}
-                        <div className="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 md:space-x-4 bg-gray-800 rounded-full px-3 py-2 md:px-6 md:py-3 shadow-2xl z-20 max-w-[95vw]">
+                        <div className="absolute bottom-2 sm:bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-1 sm:gap-2 md:gap-4 bg-gray-800/95 backdrop-blur-sm rounded-full px-2 py-1.5 sm:px-3 sm:py-2 md:px-6 md:py-3 shadow-2xl z-20 max-w-[96vw]">
                             <Button
                                 onClick={toggleAudio}
                                 variant={audio ? "ghost" : "danger"}
                                 aria-label={audio ? "Mute microphone" : "Unmute microphone"}
-                                className={`rounded-full p-2 md:p-3 ${audio ? "hover:bg-gray-700" : ""}`}
+                                className={`rounded-full !p-2 sm:!p-2.5 md:!p-3 ${audio ? "hover:bg-gray-700" : ""}`}
                             >
                                 {audio ? (
-                                    <Mic className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                    <Mic className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                 ) : (
-                                    <MicOff className="w-4 h-4 md:w-5 md:h-5" />
+                                    <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />
                                 )}
                             </Button>
 
@@ -1385,12 +1385,12 @@ const VideoCallPage = () => {
                                 onClick={toggleVideo}
                                 variant={video ? "ghost" : "danger"}
                                 aria-label={video ? "Turn off camera" : "Turn on camera"}
-                                className={`rounded-full p-2 md:p-3 ${video ? "hover:bg-gray-700" : ""}`}
+                                className={`rounded-full !p-2 sm:!p-2.5 md:!p-3 ${video ? "hover:bg-gray-700" : ""}`}
                             >
                                 {video ? (
-                                    <Video className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                    <Video className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                 ) : (
-                                    <VideoOff className="w-4 h-4 md:w-5 md:h-5" />
+                                    <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />
                                 )}
                             </Button>
 
@@ -1398,11 +1398,11 @@ const VideoCallPage = () => {
                                 onClick={toggleSpeaker}
                                 variant={isSpeakerOn ? "ghost" : "danger"}
                                 aria-label={isSpeakerOn ? "Mute speaker" : "Unmute speaker"}
-                                className="rounded-full p-2 md:p-3 hover:bg-gray-700">
+                                className="rounded-full !p-2 sm:!p-2.5 md:!p-3 hover:bg-gray-700">
                                 {isSpeakerOn ? (
-                                    <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                    <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                 ) : (
-                                    <VolumeX className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                    <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                 )}
                             </Button>
 
@@ -1410,11 +1410,11 @@ const VideoCallPage = () => {
                                 onClick={toggleScreenShare}
                                 variant={screenShare ? "danger" : "ghost"}
                                 aria-label={screenShare ? "Stop screen sharing" : "Share screen"}
-                                className="rounded-full p-2 md:p-3 hover:bg-gray-700 hidden sm:flex">
+                                className="rounded-full !p-2 sm:!p-2.5 md:!p-3 hover:bg-gray-700 hidden sm:flex">
                                 {screenShare ? (
-                                    <MonitorOff className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                    <MonitorOff className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                 ) : (
-                                    <Monitor className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                    <Monitor className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                 )}
                             </Button>
 
@@ -1422,10 +1422,10 @@ const VideoCallPage = () => {
                                 onClick={toggleChat}
                                 variant={isChatOpen ? "danger" : "ghost"}
                                 aria-label={isChatOpen ? "Close chat" : "Open chat"}
-                                className="rounded-full p-2 md:p-3 hover:bg-gray-700 relative">
-                                <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                className="rounded-full !p-2 sm:!p-2.5 md:!p-3 hover:bg-gray-700 relative">
+                                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                 {newMessages > 0 && !isChatOpen && (
-                                    <span className="absolute top-0 right-0 md:top-1 md:right-1 w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full"></span>
+                                    <span className="absolute -top-0.5 -right-0.5 sm:top-0 sm:right-0 md:top-1 md:right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full"></span>
                                 )}
                             </Button>
 
@@ -1433,23 +1433,23 @@ const VideoCallPage = () => {
                                 onClick={toggleMore}
                                 variant={isMoreOpen ? "danger" : "ghost"}
                                 aria-label={isMoreOpen ? "Close settings" : "Open settings"}
-                                className="rounded-full p-2 md:p-3 hover:bg-gray-700">
-                                <Settings className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                className="rounded-full !p-2 sm:!p-2.5 md:!p-3 hover:bg-gray-700">
+                                <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                             </Button>
 
                             <Button
                                 onClick={() => setShowLeaveConfirm(true)}
                                 variant="danger"
                                 aria-label="Leave meeting"
-                                className="rounded-full p-2 md:p-3">
-                                <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
+                                className="rounded-full !p-2 sm:!p-2.5 md:!p-3">
+                                <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
                             </Button>
                         </div>
                     </div>
 
-                    {/* Floating Chat Panel - Works on both mobile and desktop */}
+                    {/* Floating Chat Panel - Full screen on mobile, sidebar on desktop */}
                     {isChatOpen && (
-                        <div className="fixed inset-4 md:inset-auto md:right-4 md:bottom-24 md:top-20 md:w-96 z-50 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
+                        <div className="fixed inset-0 sm:inset-4 md:inset-auto md:right-4 md:bottom-24 md:top-20 md:w-96 z-50 bg-gray-800 sm:rounded-xl shadow-2xl border-0 sm:border border-gray-700 overflow-hidden">
                             <ChatPanel
                                 isOpen={true}
                                 onClose={() => setIsChatOpen(false)}
@@ -1463,7 +1463,7 @@ const VideoCallPage = () => {
 
                 {/* Participants Panel — dark mode with host controls (#26, #34, #35) */}
                 {isParticipantsOpen && (
-                    <div className="fixed right-4 top-16 w-72 bg-gray-800 rounded-lg shadow-2xl z-50 max-h-[28rem] overflow-y-auto border border-gray-700">
+                    <div className="fixed inset-x-2 top-14 sm:inset-x-auto sm:right-4 sm:top-16 sm:w-72 bg-gray-800 rounded-lg shadow-2xl z-50 max-h-[70vh] sm:max-h-[28rem] overflow-y-auto border border-gray-700">
                         <div className="p-4 border-b border-gray-700">
                             <h3 className="font-semibold text-white">
                                 Participants ({participantCount})
@@ -1562,7 +1562,7 @@ const VideoCallPage = () => {
 
                 {/* More Settings Panel */}
                 {isMoreOpen && (
-                    <div className="fixed left-1/2 transform -translate-x-1/2 bottom-24 md:bottom-28 w-[calc(100%-2rem)] sm:w-80 max-w-sm bg-gray-800 rounded-lg shadow-2xl z-50 border border-gray-700 max-h-[70vh] overflow-y-auto">
+                    <div className="fixed left-1/2 transform -translate-x-1/2 bottom-16 sm:bottom-24 md:bottom-28 w-[calc(100%-1rem)] sm:w-80 max-w-sm bg-gray-800 rounded-lg shadow-2xl z-50 border border-gray-700 max-h-[60vh] sm:max-h-[70vh] overflow-y-auto">
                         <div className="p-3 sm:p-4 border-b border-gray-700">
                             <h3 className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
                                 <Settings className="w-4 h-4" />

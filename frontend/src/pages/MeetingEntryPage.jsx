@@ -151,9 +151,9 @@ const MeetingEntryPage = () => {
                 </header>
 
                 {/* Main Content */}
-                <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                    <div className="text-center mb-12">
-                        <h1 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+                    <div className="text-center mb-6 sm:mb-12">
+                        <h1 className={`text-3xl sm:text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                             Ready to connect?
                         </h1>
                         <p className={`text-xl ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
@@ -161,7 +161,7 @@ const MeetingEntryPage = () => {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                         {/* Join Meeting */}
                         <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"} rounded-2xl shadow-xl p-8`}>
                             <div className="text-center mb-6">
@@ -232,17 +232,17 @@ const MeetingEntryPage = () => {
                     </div>
 
                     {/* Quick Actions */}
-                    <div className="mt-12">
+                        <div className="mt-8 sm:mt-12">
                         <h3 className={`text-2xl font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                             Quick Actions
                         </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-4">
                             {quickActions.map((action, index) => (
                                 <div
                                     key={index}
                                     onClick={action.comingSoon ? undefined : action.onClick}
                                     className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"
-                                        } rounded-xl p-6 shadow-lg transition-shadow relative ${action.comingSoon
+                                        } rounded-xl p-3 sm:p-6 shadow-lg transition-shadow relative ${action.comingSoon
                                             ? 'opacity-60 cursor-not-allowed'
                                             : action.onClick
                                                 ? 'hover:shadow-xl hover:scale-105 transition-transform cursor-pointer'

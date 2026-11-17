@@ -36,7 +36,7 @@ const NotFoundPage = () => {
                     </div>
 
                     <h1
-                        className={`text-7xl font-extrabold mb-4 ${
+                        className={`text-5xl sm:text-7xl font-extrabold mb-4 ${
                             isDarkMode ? "text-gray-200" : "text-gray-900"
                         }`}
                     >

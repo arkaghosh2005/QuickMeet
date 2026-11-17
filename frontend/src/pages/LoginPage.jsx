@@ -103,7 +103,7 @@ const LoginPage = () => {
 
                     {/* Login Card */}
                     <div
-                        className="bg-white rounded-2xl shadow-xl p-8 animate-scaleIn"
+                        className="bg-white rounded-2xl shadow-xl p-5 sm:p-8 animate-scaleIn"
                         style={{ backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF' }}
                     >
                         {/* Header */}

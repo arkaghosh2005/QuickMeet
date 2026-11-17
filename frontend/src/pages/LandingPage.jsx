@@ -126,18 +126,18 @@ const LandingPage = () => {
             </header>
 
             {/* Main Content */}
-            <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
                 {/* Hero Section */}
-                <div className="text-center mb-16">
+                <div className="text-center mb-8 sm:mb-16">
                     <h1
-                        className={`text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"
+                        className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 ${isDarkMode ? "text-white" : "text-gray-900"
                             }`}
                     >
                         Connect with Anyone,
                         <span className="text-blue-600 block">Anywhere</span>
                     </h1>
                     <p
-                        className={`text-xl mb-8 max-w-3xl mx-auto ${isDarkMode ? "text-gray-300" : "text-gray-600"
+                        className={`text-base sm:text-xl mb-6 sm:mb-8 px-2 max-w-3xl mx-auto ${isDarkMode ? "text-gray-300" : "text-gray-600"
                             }`}
                     >
                         Professional video meetings made simple. Join or host meetings with
@@ -149,7 +149,7 @@ const LandingPage = () => {
                         className={`${isDarkMode
                                 ? "bg-gray-800 border border-gray-700"
                                 : "bg-white"
-                            } rounded-2xl shadow-xl p-8 max-w-md mx-auto mb-12`}
+                            } rounded-2xl shadow-xl p-5 sm:p-8 max-w-md mx-auto mb-8 sm:mb-12`}
                     >
                         <h2
                             className={`text-2xl font-semibold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"
@@ -211,24 +211,24 @@ const LandingPage = () => {
                 </div>
 
                 {/* Features Section */}
-                <section aria-label="Features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+                <section aria-label="Features" className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-8 mb-8 sm:mb-16">
                     {features.map((feature, index) => (
                         <div
                             key={index}
                             className={`${isDarkMode
                                     ? "bg-gray-800 border border-gray-700"
                                     : "bg-white"
-                                } rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}
+                                } rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}
                         >
                             <div className="flex flex-col items-center text-center">
                                 <div
-                                    className={`mb-4 p-3 rounded-full ${isDarkMode ? "bg-gray-700" : "bg-gray-50"
+                                    className={`mb-2 sm:mb-4 p-2 sm:p-3 rounded-full ${isDarkMode ? "bg-gray-700" : "bg-gray-50"
                                         }`}
                                 >
                                     {feature.icon}
                                 </div>
                                 <h3
-                                    className={`text-lg font-semibold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"
+                                    className={`text-sm sm:text-lg font-semibold mb-1 sm:mb-2 ${isDarkMode ? "text-white" : "text-gray-900"
                                         }`}
                                 >
                                     {feature.title}
@@ -245,9 +245,9 @@ const LandingPage = () => {
                 </section>
 
                 {/* Call to Action Section */}
-                <div className="bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl p-8 text-center text-white">
-                    <h2 className="text-3xl font-bold mb-4">Ready to get started?</h2>
-                    <p className="text-xl mb-6 opacity-90">
+                <div className="bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl p-5 sm:p-8 text-center text-white">
+                    <h2 className="text-xl sm:text-3xl font-bold mb-4">Ready to get started?</h2>
+                    <p className="text-base sm:text-xl mb-4 sm:mb-6 opacity-90">
                         Create your account and start hosting meetings today
                     </p>
                     <Button

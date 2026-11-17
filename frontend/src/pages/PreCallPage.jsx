@@ -348,7 +348,7 @@ const PreCallPage = () => {
                 path={`/pre-call/${meetingCode}`}
                 noIndex={true}
             />
-            <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+            <div className="min-h-[100dvh] bg-gray-900 flex items-center justify-center p-3 sm:p-4">
                 <div className="w-full max-w-4xl">
                     {/* Back Button */}
                     <Button
@@ -362,7 +362,7 @@ const PreCallPage = () => {
                         Back
                     </Button>
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-white mb-2">Ready to join?</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Ready to join?</h1>
                         <p className="text-gray-300">
                             Meeting Code:{" "}
                             <span className="font-mono text-blue-400">{meetingCode}</span>
@@ -425,7 +425,7 @@ const PreCallPage = () => {
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
                         {/* Video Preview */}
                         <div className="lg:col-span-2">
                             <div
@@ -453,7 +453,7 @@ const PreCallPage = () => {
                                 )}
 
                                 {/* Controls Overlay */}
-                                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4">
+                                <div className="absolute bottom-3 sm:bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-3 sm:space-x-4">
                                     <Button
                                         onClick={toggleVideo}
                                         variant={video ? "ghost" : "danger"}
@@ -479,10 +479,10 @@ const PreCallPage = () => {
                         </div>
 
                         {/* Settings Panel */}
-                        <div className="bg-white rounded-2xl p-6">
+                        <div className="bg-white rounded-2xl p-4 sm:p-6">
                             <div className="flex items-center space-x-2 mb-6">
                                 <Settings className="w-5 h-5 text-gray-600" />
-                                <h2 className="text-xl font-semibold text-gray-900">Setup</h2>
+                                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Setup</h2>
                             </div>
 
                             <div className="space-y-6">
