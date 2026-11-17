@@ -934,8 +934,13 @@ const VideoCallPage = () => {
                 let rtt = 0;
                 let packetLoss = 0;
                 stats.forEach(report => {
-                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-                        rtt = report.currentRoundTripTime ? Math.round(report.currentRoundTripTime * 1000) : 0;
+                    // Try candidate-pair first (most reliable when available)
+                    if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.currentRoundTripTime) {
+                        rtt = Math.round(report.currentRoundTripTime * 1000);
+                    }
+                    // Fallback: remote-inbound-rtp has roundTripTime
+                    if (report.type === 'remote-inbound-rtp' && report.roundTripTime && rtt === 0) {
+                        rtt = Math.round(report.roundTripTime * 1000);
                     }
                     if (report.type === 'inbound-rtp' && report.kind === 'video') {
                         const lost = report.packetsLost || 0;

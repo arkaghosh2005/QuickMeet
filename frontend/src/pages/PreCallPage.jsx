@@ -365,10 +365,15 @@ const PreCallPage = () => {
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                     Checking room...
                                 </span>
-                            ) : roomStatus.isLocked && !passwordVerified ? (
+                            ) : roomStatus.isLocked && !roomStatus.hasPassword && !passwordVerified ? (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-red-900/50 text-red-300">
                                     <Lock className="w-3.5 h-3.5" />
                                     Meeting Locked
+                                </span>
+                            ) : roomStatus.isLocked && roomStatus.hasPassword && !passwordVerified ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-yellow-900/50 text-yellow-300">
+                                    <KeyRound className="w-3.5 h-3.5" />
+                                    Meeting Locked - Enter password to unlock
                                 </span>
                             ) : roomStatus.hasPassword && !passwordVerified ? (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-yellow-900/50 text-yellow-300">
@@ -383,8 +388,8 @@ const PreCallPage = () => {
                             )}
                         </div>
 
-                        {/* Password Input — shown when locked or has password and not yet verified */}
-                        {roomStatus && (roomStatus.isLocked || roomStatus.hasPassword) && !passwordVerified && (
+                        {/* Password Input — shown only when room has a password and not yet verified */}
+                        {roomStatus && roomStatus.hasPassword && !passwordVerified && (
                             <div className="mt-4 max-w-xs mx-auto">
                                 <div className="flex gap-2">
                                     <input

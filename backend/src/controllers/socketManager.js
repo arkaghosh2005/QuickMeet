@@ -20,7 +20,7 @@ let roomCleanupTimers = {}
 let waitingRoom = {}      // { [roomKey]: [{ socketId, userName, userRole }] }
 let roomPasswords = {}    // { [roomKey]: string | null }
 let lockedRooms = {}      // { [roomKey]: boolean }
-let admittedSockets = {}  // { [roomKey]: Set<socketId> }
+let admittedUsers = {}    // { [roomKey]: Set<userId> }
 
 const ROOM_EXPIRY_TIME = 60 * 60 * 1000; // 1 hour in milliseconds
 const MAX_MESSAGES_PER_ROOM = 500;
@@ -68,7 +68,7 @@ export const connectToSocket = (server) => {
         if (waitingRoom[roomUrl]) delete waitingRoom[roomUrl];
         if (roomPasswords[roomUrl]) delete roomPasswords[roomUrl];
         if (lockedRooms[roomUrl]) delete lockedRooms[roomUrl];
-        if (admittedSockets[roomUrl]) delete admittedSockets[roomUrl];
+        if (admittedUsers[roomUrl]) delete admittedUsers[roomUrl];
     };
 
     const scheduleRoomCleanup = (roomUrl) => {
@@ -154,8 +154,8 @@ export const connectToSocket = (server) => {
             if (userRole !== 'host') {
                 const host = connections[roomUrl].find(u => u.userRole === 'host');
                 if (host) {
-                    const admitted = admittedSockets[roomUrl];
-                    if (!admitted || !admitted.has(socket.id)) {
+                    const admitted = admittedUsers[roomUrl];
+                    if (!admitted || !admitted.has(userId)) {
                         io.to(socket.id).emit('join-rejected', { reason: 'not-admitted' });
                         return;
                     }
@@ -228,10 +228,11 @@ export const connectToSocket = (server) => {
 
         // --- HOST CONTROLS (#34) ---
         socket.on("mute-participant", ({ targetSocketId }) => {
-            // Clean up from admittedSockets
-            for (const [room, sockets] of Object.entries(admittedSockets)) {
-                sockets.delete(socket.id);
-                if (sockets.size === 0) delete admittedSockets[room];
+            // Clean up from admittedUsers
+            const dcUserId = socket.user?.id || socket.user?.name;
+            for (const [room, users] of Object.entries(admittedUsers)) {
+                if (dcUserId) users.delete(dcUserId);
+                if (users.size === 0) delete admittedUsers[room];
             }
 
             const room = Object.keys(connections).find(key =>
@@ -244,10 +245,11 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("kick-participant", ({ targetSocketId }) => {
-            // Clean up from admittedSockets
-            for (const [room, sockets] of Object.entries(admittedSockets)) {
-                sockets.delete(socket.id);
-                if (sockets.size === 0) delete admittedSockets[room];
+            // Clean up from admittedUsers
+            const dcUserId = socket.user?.id || socket.user?.name;
+            for (const [room, users] of Object.entries(admittedUsers)) {
+                if (dcUserId) users.delete(dcUserId);
+                if (users.size === 0) delete admittedUsers[room];
             }
 
             const room = Object.keys(connections).find(key =>
@@ -270,8 +272,9 @@ export const connectToSocket = (server) => {
             userName = sanitize(userName);
             // Host bypass: admit immediately
             if (userRole === 'host') {
-                if (!admittedSockets[roomUrl]) admittedSockets[roomUrl] = new Set();
-                admittedSockets[roomUrl].add(socket.id);
+                const userId = socket.user?.id || socket.user?.name;
+                if (!admittedUsers[roomUrl]) admittedUsers[roomUrl] = new Set();
+                admittedUsers[roomUrl].add(userId);
                 io.to(socket.id).emit('admitted');
                 return;
             }
@@ -295,8 +298,11 @@ export const connectToSocket = (server) => {
             if (waitingIdx === -1) return;
             const admittedUser = waitingRoom[room].splice(waitingIdx, 1)[0];
             // Track admission so join-call guard allows entry
-            if (!admittedSockets[room]) admittedSockets[room] = new Set();
-            admittedSockets[room].add(targetSocketId);
+            // Look up the target socket to get user identity
+            const targetSocket = io.sockets.sockets.get(targetSocketId);
+            const admitUserId = targetSocket?.user?.id || targetSocket?.user?.name || targetSocketId;
+            if (!admittedUsers[room]) admittedUsers[room] = new Set();
+            admittedUsers[room].add(admitUserId);
             // Tell the admitted user to proceed
             io.to(targetSocketId).emit("admitted");
             // Notify host of updated waiting list
@@ -317,10 +323,11 @@ export const connectToSocket = (server) => {
 
         // --- MEETING PASSWORD / LOCK (#36) ---
         socket.on("set-room-password", ({ password }) => {
-            // Clean up from admittedSockets
-            for (const [room, sockets] of Object.entries(admittedSockets)) {
-                sockets.delete(socket.id);
-                if (sockets.size === 0) delete admittedSockets[room];
+            // Clean up from admittedUsers
+            const dcUserId = socket.user?.id || socket.user?.name;
+            for (const [room, users] of Object.entries(admittedUsers)) {
+                if (dcUserId) users.delete(dcUserId);
+                if (users.size === 0) delete admittedUsers[room];
             }
 
             const room = Object.keys(connections).find(key =>
@@ -337,10 +344,11 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("toggle-room-lock", () => {
-            // Clean up from admittedSockets
-            for (const [room, sockets] of Object.entries(admittedSockets)) {
-                sockets.delete(socket.id);
-                if (sockets.size === 0) delete admittedSockets[room];
+            // Clean up from admittedUsers
+            const dcUserId = socket.user?.id || socket.user?.name;
+            for (const [room, users] of Object.entries(admittedUsers)) {
+                if (dcUserId) users.delete(dcUserId);
+                if (users.size === 0) delete admittedUsers[room];
             }
 
             const room = Object.keys(connections).find(key =>
@@ -370,7 +378,7 @@ export const connectToSocket = (server) => {
 
         socket.on("verify-room-password", ({ roomUrl, password }) => {
             if (!roomPasswords[roomUrl]) {
-                return io.to(socket.id).emit("password-result", { success: true });
+                return io.to(socket.id).emit("password-result", { success: false });
             }
             const match = roomPasswords[roomUrl] === password;
             io.to(socket.id).emit("password-result", { success: match });
