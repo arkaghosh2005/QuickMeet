@@ -1,11 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Video, VideoOff, Mic, MicOff, Settings, ArrowRight, ArrowLeft } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, Settings, ArrowRight, ArrowLeft, Lock, Unlock, KeyRound, Loader2 } from "lucide-react";
+import io from "socket.io-client";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
 import { silence, black } from "../utils/mediaHelpers";
+
+const server_url = import.meta.env.VITE_SERVER_URL;
 
 const PreCallPage = () => {
     const { meetingCode } = useParams();
@@ -14,9 +17,18 @@ const PreCallPage = () => {
     const localVideoref = useRef();
     const localStreamRef = useRef(null);
     const isMountedRef = useRef(true);
+    const socketRef = useRef(null);
+    const statusIntervalRef = useRef(null);
 
     // User Identity
     const [displayName, setDisplayName] = useState(userData?.name || "");
+
+    // Room status & waiting room
+    const [roomStatus, setRoomStatus] = useState(null); // { exists, isLocked, hasPassword, hasHost }
+    const [waitingState, setWaitingState] = useState('idle'); // 'idle' | 'waiting' | 'admitted' | 'rejected'
+    const [passwordValue, setPasswordValue] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [passwordVerified, setPasswordVerified] = useState(false);
 
     // Device Permissions
     const [videoAvailable, setVideoAvailable] = useState(true);
@@ -54,6 +66,82 @@ const PreCallPage = () => {
             stopPreviewStream();
         };
     }, []);
+
+    // Socket connection for room status & waiting room
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const savedUser = JSON.parse(localStorage.getItem('userData') || '{}');
+        const socketAuth = token
+            ? { token }
+            : { guestName: savedUser.name, guestId: savedUser.id };
+
+        const socket = io.connect(server_url, {
+            secure: window.location.protocol === "https:",
+            auth: socketAuth,
+        });
+        socketRef.current = socket;
+
+        socket.on('connect', () => {
+            socket.emit('check-room-status', { roomUrl: meetingCode });
+
+            // Poll room status every 5s
+            statusIntervalRef.current = setInterval(() => {
+                socket.emit('check-room-status', { roomUrl: meetingCode });
+            }, 5000);
+        });
+
+        socket.on('room-status', (status) => {
+            setRoomStatus(status);
+        });
+
+        socket.on('password-result', ({ success }) => {
+            if (success) {
+                setPasswordVerified(true);
+                setPasswordError('');
+            } else {
+                setPasswordError('Incorrect password');
+            }
+        });
+
+        socket.on('admitted', () => {
+            setWaitingState('admitted');
+        });
+
+        socket.on('rejected', () => {
+            setWaitingState('rejected');
+            setTimeout(() => setWaitingState('idle'), 3000);
+        });
+
+        return () => {
+            if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
+            socket.removeAllListeners();
+            socket.disconnect();
+            socketRef.current = null;
+        };
+    }, [meetingCode]);
+
+    // Auto-navigate when admitted
+    useEffect(() => {
+        if (waitingState === 'admitted') {
+            stopPreviewStream();
+            if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
+            socketRef.current?.removeAllListeners();
+            socketRef.current?.disconnect();
+            socketRef.current = null;
+
+            const isHost = sessionStorage.getItem(`created_${meetingCode}`) === 'true';
+            if (isHost) sessionStorage.removeItem(`created_${meetingCode}`);
+
+            navigate(`/${meetingCode}`, {
+                state: {
+                    displayName,
+                    video,
+                    audio,
+                    isHost,
+                },
+            });
+        }
+    }, [waitingState]);
 
     useEffect(() => {
         // Block back navigation
@@ -191,25 +279,45 @@ const PreCallPage = () => {
     };
 
     const handleJoinCall = () => {
-        // Stop preview stream before navigating
-        stopPreviewStream();
-
-        // Check if this user created the meeting
         const isHost = sessionStorage.getItem(`created_${meetingCode}`) === 'true';
 
-        // Clear the flag after checking
-        if (isHost) {
-            sessionStorage.removeItem(`created_${meetingCode}`);
+        // If host OR no host in room yet → join directly
+        if (isHost || !roomStatus?.hasHost) {
+            stopPreviewStream();
+            if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
+            socketRef.current?.removeAllListeners();
+            socketRef.current?.disconnect();
+            socketRef.current = null;
+
+            if (isHost) sessionStorage.removeItem(`created_${meetingCode}`);
+
+            navigate(`/${meetingCode}`, {
+                state: {
+                    displayName,
+                    video,
+                    audio,
+                    isHost,
+                },
+            });
+            return;
         }
 
-        // Navigate to call page with initial settings
-        navigate(`/${meetingCode}`, {
-            state: {
-                displayName: displayName,
-                video: video,
-                audio: audio,
-                isHost: isHost,
-            }
+        // Non-host joining a room with a host → enter waiting room
+        setWaitingState('waiting');
+        socketRef.current?.emit('join-waiting-room', {
+            roomUrl: meetingCode,
+            userName: displayName,
+            userRole: 'participant',
+            video,
+            audio,
+        });
+    };
+
+    const handleVerifyPassword = () => {
+        if (!passwordValue.trim()) return;
+        socketRef.current?.emit('verify-room-password', {
+            roomUrl: meetingCode,
+            password: passwordValue.trim(),
         });
     };
 
@@ -249,6 +357,57 @@ const PreCallPage = () => {
                             Meeting Code:{" "}
                             <span className="font-mono text-blue-400">{meetingCode}</span>
                         </p>
+
+                        {/* Room Status Badge */}
+                        <div className="mt-3 flex justify-center">
+                            {!roomStatus ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    Checking room...
+                                </span>
+                            ) : roomStatus.isLocked && !passwordVerified ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-red-900/50 text-red-300">
+                                    <Lock className="w-3.5 h-3.5" />
+                                    Meeting Locked
+                                </span>
+                            ) : roomStatus.hasPassword && !passwordVerified ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-yellow-900/50 text-yellow-300">
+                                    <KeyRound className="w-3.5 h-3.5" />
+                                    Password Required
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-green-900/50 text-green-300">
+                                    <Unlock className="w-3.5 h-3.5" />
+                                    {roomStatus.hasHost ? 'Open' : 'No restrictions'}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Password Input — shown when locked or has password and not yet verified */}
+                        {roomStatus && (roomStatus.isLocked || roomStatus.hasPassword) && !passwordVerified && (
+                            <div className="mt-4 max-w-xs mx-auto">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="password"
+                                        value={passwordValue}
+                                        onChange={(e) => { setPasswordValue(e.target.value); setPasswordError(''); }}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleVerifyPassword()}
+                                        placeholder="Enter meeting password"
+                                        className="flex-1 px-3 py-2 rounded-lg bg-gray-800 text-white border border-gray-600 text-sm focus:outline-none focus:border-blue-500"
+                                    />
+                                    <button
+                                        onClick={handleVerifyPassword}
+                                        disabled={!passwordValue.trim()}
+                                        className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Unlock
+                                    </button>
+                                </div>
+                                {passwordError && (
+                                    <p className="text-red-400 text-xs mt-1.5">{passwordError}</p>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -347,16 +506,40 @@ const PreCallPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Join Button */}
+                                {/* Join Button / Waiting State */}
                                 <div className="pt-4 border-t border-gray-200">
-                                    <Button
-                                        onClick={handleJoinCall}
-                                        className="w-full"
-                                        size="lg"
-                                        disabled={!displayName.trim()}>
-                                        Join Meeting
-                                        <ArrowRight className="w-5 h-5 ml-2" />
-                                    </Button>
+                                    {waitingState === 'waiting' ? (
+                                        <div className="text-center space-y-3">
+                                            <div className="flex items-center justify-center gap-2 text-blue-600">
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                <span className="font-medium text-sm">Waiting for host to let you in...</span>
+                                            </div>
+                                            <button
+                                                onClick={() => setWaitingState('idle')}
+                                                className="text-xs text-gray-500 hover:text-gray-700 underline"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    ) : waitingState === 'rejected' ? (
+                                        <div className="text-center space-y-2">
+                                            <p className="text-red-600 font-medium text-sm">Your request to join was denied</p>
+                                            <p className="text-gray-500 text-xs">You can try again</p>
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            onClick={handleJoinCall}
+                                            className="w-full"
+                                            size="lg"
+                                            disabled={
+                                                !displayName.trim() ||
+                                                !roomStatus ||
+                                                (roomStatus && (roomStatus.isLocked || roomStatus.hasPassword) && !passwordVerified)
+                                            }>
+                                            Join Meeting
+                                            <ArrowRight className="w-5 h-5 ml-2" />
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </div>

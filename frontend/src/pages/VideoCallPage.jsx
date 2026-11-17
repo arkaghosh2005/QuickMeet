@@ -672,6 +672,16 @@ const VideoCallPage = () => {
             socket.off('force-kick');
             socket.off('waiting-room-update');
             socket.off('room-settings-update');
+            socket.off('join-rejected');
+
+            // If join is rejected (user bypassed waiting room), go back
+            socket.on('join-rejected', () => {
+                setToastMessage('You were not admitted to this meeting');
+                setTimeout(() => {
+                    handleEndCall();
+                    navigate(`/pre-call/${meetingCode}`, { replace: true });
+                }, 1500);
+            });
 
             socket.on('chat-message', addMessage);
 

@@ -20,6 +20,7 @@ let roomCleanupTimers = {}
 let waitingRoom = {}      // { [roomKey]: [{ socketId, userName, userRole }] }
 let roomPasswords = {}    // { [roomKey]: string | null }
 let lockedRooms = {}      // { [roomKey]: boolean }
+let admittedSockets = {}  // { [roomKey]: Set<socketId> }
 
 const ROOM_EXPIRY_TIME = 60 * 60 * 1000; // 1 hour in milliseconds
 const MAX_MESSAGES_PER_ROOM = 500;
@@ -67,6 +68,7 @@ export const connectToSocket = (server) => {
         if (waitingRoom[roomUrl]) delete waitingRoom[roomUrl];
         if (roomPasswords[roomUrl]) delete roomPasswords[roomUrl];
         if (lockedRooms[roomUrl]) delete lockedRooms[roomUrl];
+        if (admittedSockets[roomUrl]) delete admittedSockets[roomUrl];
     };
 
     const scheduleRoomCleanup = (roomUrl) => {
@@ -148,6 +150,18 @@ export const connectToSocket = (server) => {
                 return true;
             });
 
+            // Admission guard: if room has a host and joiner is not host, verify admission
+            if (userRole !== 'host') {
+                const host = connections[roomUrl].find(u => u.userRole === 'host');
+                if (host) {
+                    const admitted = admittedSockets[roomUrl];
+                    if (!admitted || !admitted.has(socket.id)) {
+                        io.to(socket.id).emit('join-rejected', { reason: 'not-admitted' });
+                        return;
+                    }
+                }
+            }
+
             connections[roomUrl].push({ socketId: socket.id, userName, userRole, video, audio, _userId: userId });
 
             connections[roomUrl].forEach(user =>
@@ -214,6 +228,12 @@ export const connectToSocket = (server) => {
 
         // --- HOST CONTROLS (#34) ---
         socket.on("mute-participant", ({ targetSocketId }) => {
+            // Clean up from admittedSockets
+            for (const [room, sockets] of Object.entries(admittedSockets)) {
+                sockets.delete(socket.id);
+                if (sockets.size === 0) delete admittedSockets[room];
+            }
+
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
             );
@@ -224,6 +244,12 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("kick-participant", ({ targetSocketId }) => {
+            // Clean up from admittedSockets
+            for (const [room, sockets] of Object.entries(admittedSockets)) {
+                sockets.delete(socket.id);
+                if (sockets.size === 0) delete admittedSockets[room];
+            }
+
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
             );
@@ -242,6 +268,13 @@ export const connectToSocket = (server) => {
         // --- WAITING ROOM (#35) ---
         socket.on("join-waiting-room", ({ roomUrl, userName, userRole, video, audio }) => {
             userName = sanitize(userName);
+            // Host bypass: admit immediately
+            if (userRole === 'host') {
+                if (!admittedSockets[roomUrl]) admittedSockets[roomUrl] = new Set();
+                admittedSockets[roomUrl].add(socket.id);
+                io.to(socket.id).emit('admitted');
+                return;
+            }
             if (!waitingRoom[roomUrl]) waitingRoom[roomUrl] = [];
             waitingRoom[roomUrl].push({ socketId: socket.id, userName, userRole, video, audio });
             // Notify host
@@ -260,7 +293,10 @@ export const connectToSocket = (server) => {
             // Find user in waiting room
             const waitingIdx = (waitingRoom[room] || []).findIndex(u => u.socketId === targetSocketId);
             if (waitingIdx === -1) return;
-            const admitted = waitingRoom[room].splice(waitingIdx, 1)[0];
+            const admittedUser = waitingRoom[room].splice(waitingIdx, 1)[0];
+            // Track admission so join-call guard allows entry
+            if (!admittedSockets[room]) admittedSockets[room] = new Set();
+            admittedSockets[room].add(targetSocketId);
             // Tell the admitted user to proceed
             io.to(targetSocketId).emit("admitted");
             // Notify host of updated waiting list
@@ -281,6 +317,12 @@ export const connectToSocket = (server) => {
 
         // --- MEETING PASSWORD / LOCK (#36) ---
         socket.on("set-room-password", ({ password }) => {
+            // Clean up from admittedSockets
+            for (const [room, sockets] of Object.entries(admittedSockets)) {
+                sockets.delete(socket.id);
+                if (sockets.size === 0) delete admittedSockets[room];
+            }
+
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
             );
@@ -295,6 +337,12 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("toggle-room-lock", () => {
+            // Clean up from admittedSockets
+            for (const [room, sockets] of Object.entries(admittedSockets)) {
+                sockets.delete(socket.id);
+                if (sockets.size === 0) delete admittedSockets[room];
+            }
+
             const room = Object.keys(connections).find(key =>
                 connections[key].some(user => user.socketId === socket.id)
             );
@@ -308,19 +356,24 @@ export const connectToSocket = (server) => {
             });
         });
 
-        socket.on("check-room-access", ({ roomUrl, password }) => {
-            if (lockedRooms[roomUrl]) {
-                return io.to(socket.id).emit("room-access-result", { allowed: false, reason: "locked" });
-            }
-            if (roomPasswords[roomUrl] && roomPasswords[roomUrl] !== password) {
-                return io.to(socket.id).emit("room-access-result", { allowed: false, reason: "password" });
-            }
-            // Check if there's a host and waiting room is needed
+        // --- ROOM STATUS CHECK (PreCallPage) ---
+        socket.on("check-room-status", ({ roomUrl }) => {
+            const roomExists = !!(connections[roomUrl] && connections[roomUrl].length > 0);
             const host = connections[roomUrl]?.find(u => u.userRole === 'host');
-            if (host) {
-                return io.to(socket.id).emit("room-access-result", { allowed: true, hasWaitingRoom: true });
+            io.to(socket.id).emit("room-status", {
+                exists: roomExists,
+                isLocked: !!lockedRooms[roomUrl],
+                hasPassword: !!roomPasswords[roomUrl],
+                hasHost: !!host
+            });
+        });
+
+        socket.on("verify-room-password", ({ roomUrl, password }) => {
+            if (!roomPasswords[roomUrl]) {
+                return io.to(socket.id).emit("password-result", { success: true });
             }
-            io.to(socket.id).emit("room-access-result", { allowed: true, hasWaitingRoom: false });
+            const match = roomPasswords[roomUrl] === password;
+            io.to(socket.id).emit("password-result", { success: match });
         });
         // --- DISCONNECT ---
         socket.on("disconnect", () => {
