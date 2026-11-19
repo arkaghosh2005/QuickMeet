@@ -25,17 +25,25 @@ export const useAuth = () => {
 // AuthProvider Component
 export const AuthProvider = ({ children }) => {
 
-  // State
-  const [userData, setUserData] = useState(null);
+  // State — initialize synchronously from localStorage to prevent redirect flash
+  const [userData, setUserData] = useState(() => {
+    try {
+      const saved = localStorage.getItem("userData");
+      if (saved && saved !== "undefined") {
+        return JSON.parse(saved);
+      }
+    } catch (e) { /* ignore parse errors */ }
+    return null;
+  });
   const [loading, setLoading] = useState(false);
   const [sessionToast, setSessionToast] = useState('');
   const logoutRef = useRef(null);
 
-  // Load saved user from localStorage on mount
+  // Clean up invalid localStorage on mount (edge case)
   useEffect(() => {
-    const savedUser = localStorage.getItem("userData");
-    if (savedUser && savedUser !== "undefined") {
-      setUserData(JSON.parse(savedUser));
+    const saved = localStorage.getItem("userData");
+    if (saved && saved !== "undefined") {
+      // already loaded synchronously above, nothing to do
     } else {
       localStorage.removeItem("userData");
     }
