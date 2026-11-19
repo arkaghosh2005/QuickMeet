@@ -184,13 +184,6 @@ const SettingsPage = () => {
         localStorage.setItem('quickmeet_default_audio', JSON.stringify(newVal));
     };
 
-    const getInitials = (name) => {
-        if (!name) return 'U';
-        const parts = name.trim().split(' ');
-        if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-        return name.charAt(0).toUpperCase();
-    };
-
     // Shared input classes
     const inputClasses = `w-full px-3.5 py-2.5 border rounded-xl text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isDarkMode
         ? "bg-gray-700/80 border-gray-600 text-white placeholder-gray-400"
@@ -212,17 +205,17 @@ const SettingsPage = () => {
                 {/* Header */}
                 <header className={`${isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white"} shadow-sm border-b`}>
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex justify-between items-center h-14 sm:h-16">
+                        <div className="flex justify-between items-center h-16">
                             <div className="flex items-center space-x-2">
-                                <Video className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
-                                <span className={`text-lg sm:text-xl font-bold ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                                <Video className="w-8 h-8 text-blue-600" />
+                                <span className={`text-xl font-bold ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                                     QuickMeet
                                 </span>
                             </div>
 
-                            <div className="flex items-center space-x-3 sm:space-x-4">
+                            <div className="flex items-center space-x-4">
                                 <DarkModeToggle />
-                                <span className={`hidden sm:inline text-sm ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                                <span className={`hidden sm:inline ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
                                     Welcome, <strong>{userData?.name}</strong>
                                 </span>
                             </div>
@@ -231,63 +224,49 @@ const SettingsPage = () => {
                 </header>
 
                 {/* Main Content */}
-                <main className="max-w-2xl mx-auto px-3 sm:px-6 py-4 sm:py-10">
-                    {/* Back Button */}
-                    <Button
-                        variant="ghost"
-                        onClick={() => navigate('/meeting-entry')}
-                        className={`flex items-center space-x-1.5 mb-4 sm:mb-6 text-sm ${isDarkMode ? "text-gray-300 hover:bg-gray-800" : "hover:bg-gray-100"}`}
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        <span>Back to Dashboard</span>
-                    </Button>
+                <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+                    {/* Single Big Background Container — matching MeetingHistoryPage */}
+                    <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white"} rounded-2xl shadow-xl p-6 sm:p-8`}>
+                        {/* Back Button */}
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate('/meeting-entry')}
+                            className={`flex items-center space-x-2 mb-6 ${isDarkMode ? "text-gray-300 hover:bg-gray-700" : "hover:bg-gray-100"}`}
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                            <span>Back</span>
+                        </Button>
 
-                    {/* Profile Card */}
-                    <div className={`${isDarkMode ? "bg-gray-800/80 border border-gray-700" : "bg-white"} rounded-2xl shadow-lg overflow-hidden mb-4 sm:mb-6`}>
-                        {/* Profile Header with Avatar */}
-                        <div className={`relative px-4 sm:px-6 pt-5 sm:pt-8 pb-4 sm:pb-6 ${isDarkMode ? "bg-gradient-to-r from-blue-900/40 to-purple-900/40" : "bg-gradient-to-r from-blue-50 to-indigo-50"}`}>
-                            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-5">
-                                {/* Avatar */}
-                                <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-xl sm:text-2xl font-bold text-white shrink-0 ${isDarkMode ? "bg-gradient-to-br from-blue-500 to-purple-600" : "bg-gradient-to-br from-blue-500 to-indigo-600"}`}>
-                                    {getInitials(userData?.name)}
-                                </div>
-                                {/* Info */}
-                                <div className="text-center sm:text-left min-w-0">
-                                    <h1 className={`text-xl sm:text-2xl font-bold truncate ${isDarkMode ? "text-white" : "text-gray-900"}`}>
-                                        {userData?.name || 'User'}
-                                    </h1>
-                                    {userData?.email && (
-                                        <p className={`text-sm truncate mt-0.5 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                                            {userData.email}
-                                        </p>
-                                    )}
-                                    <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
-                                        {isGuest ? (
-                                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isDarkMode ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30" : "bg-yellow-100 text-yellow-700"}`}>
-                                                Guest Account
-                                            </span>
-                                        ) : (
-                                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isDarkMode ? "bg-green-500/20 text-green-300 border border-green-500/30" : "bg-green-100 text-green-700"}`}>
-                                                Registered
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
+                        {/* Header Section */}
+                        <div className="text-center mb-8">
+                            <div className={`w-14 h-14 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 ${isDarkMode ? "bg-gray-700" : "bg-blue-100"
+                                }`}>
+                                <Settings className="w-7 h-7 sm:w-10 sm:h-10 text-blue-600" />
                             </div>
+                            <h1 className={`text-3xl sm:text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                                Settings
+                            </h1>
+                            <p className={`text-lg sm:text-xl ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
+                                Manage your account and preferences
+                            </p>
                         </div>
 
-                        {/* Account Details */}
-                        <div className="px-4 sm:px-6 py-4 sm:py-5">
-                            <h2 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        {/* Divider */}
+                        <div className={`border-t ${isDarkMode ? "border-gray-700" : "border-gray-200"} mb-8`}></div>
+
+                        {/* Account Details Section */}
+                        <div className="mb-8">
+                            <h2 className={`text-lg sm:text-xl font-semibold mb-4 flex items-center gap-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                                <User className="w-5 h-5 text-blue-500" />
                                 Account Details
                             </h2>
-                            <div className="space-y-3">
+                            <div className={`${isDarkMode ? "bg-gray-700/50" : "bg-gray-50"} rounded-xl p-5 space-y-4`}>
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isDarkMode ? "bg-gray-700" : "bg-blue-50"}`}>
-                                        <User className="w-4 h-4 text-blue-500" />
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isDarkMode ? "bg-gray-600" : "bg-blue-100"}`}>
+                                        <User className="w-5 h-5 text-blue-500" />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className={`text-xs ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>Name</p>
+                                        <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>Name</p>
                                         <p className={`text-sm font-medium truncate ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                                             {userData?.name || 'Unknown'}
                                         </p>
@@ -296,311 +275,257 @@ const SettingsPage = () => {
 
                                 {userData?.email && (
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isDarkMode ? "bg-gray-700" : "bg-purple-50"}`}>
-                                            <Mail className="w-4 h-4 text-purple-500" />
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isDarkMode ? "bg-gray-600" : "bg-purple-100"}`}>
+                                            <Mail className="w-5 h-5 text-purple-500" />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className={`text-xs ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>Email</p>
+                                            <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>Email</p>
                                             <p className={`text-sm font-medium truncate ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                                                 {userData.email}
                                             </p>
                                         </div>
                                     </div>
                                 )}
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* Preferences Card */}
-                    <div className={`${isDarkMode ? "bg-gray-800/80 border border-gray-700" : "bg-white"} rounded-2xl shadow-lg overflow-hidden mb-4 sm:mb-6`}>
-                        <div className="px-4 sm:px-6 py-4 sm:py-5">
-                            <h2 className={`text-sm font-semibold uppercase tracking-wider mb-4 flex items-center gap-2 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                                <Settings className="w-4 h-4" />
-                                Preferences
-                            </h2>
-
-                            <div className="space-y-1">
-                                {/* Appearance */}
-                                <div className={`flex items-center justify-between py-3 px-3 rounded-xl ${isDarkMode ? "hover:bg-gray-700/50" : "hover:bg-gray-50"} transition-colors`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? "bg-gray-700" : "bg-amber-50"}`}>
-                                            {isDarkMode ? <Moon className="w-4 h-4 text-amber-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
-                                        </div>
-                                        <div>
-                                            <p className={`text-sm font-medium ${isDarkMode ? "text-white" : "text-gray-900"}`}>Appearance</p>
-                                            <p className={`text-xs ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>{isDarkMode ? 'Dark mode' : 'Light mode'}</p>
-                                        </div>
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isDarkMode ? "bg-gray-600" : "bg-green-100"}`}>
+                                        <Check className="w-5 h-5 text-green-500" />
                                     </div>
-                                    <DarkModeToggle />
-                                </div>
-
-                                {/* Default Camera */}
-                                <div className={`flex items-center justify-between py-3 px-3 rounded-xl ${isDarkMode ? "hover:bg-gray-700/50" : "hover:bg-gray-50"} transition-colors`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? "bg-gray-700" : "bg-blue-50"}`}>
-                                            <Camera className="w-4 h-4 text-blue-500" />
-                                        </div>
-                                        <div>
-                                            <p className={`text-sm font-medium ${isDarkMode ? "text-white" : "text-gray-900"}`}>Camera on join</p>
-                                            <p className={`text-xs ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>Start with camera {defaultVideo ? 'on' : 'off'}</p>
-                                        </div>
+                                    <div>
+                                        <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>Account Type</p>
+                                        {isGuest ? (
+                                            <span className="text-sm font-medium text-yellow-500">Guest Account</span>
+                                        ) : (
+                                            <span className="text-sm font-medium text-green-500">Registered</span>
+                                        )}
                                     </div>
-                                    <button
-                                        onClick={toggleDefaultVideo}
-                                        className={`relative w-11 h-6 rounded-full transition-colors ${defaultVideo
-                                            ? "bg-blue-500"
-                                            : isDarkMode ? "bg-gray-600" : "bg-gray-300"
-                                            }`}
-                                    >
-                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${defaultVideo ? "translate-x-5" : "translate-x-0"
-                                            }`} />
-                                    </button>
-                                </div>
-
-                                {/* Default Mic */}
-                                <div className={`flex items-center justify-between py-3 px-3 rounded-xl ${isDarkMode ? "hover:bg-gray-700/50" : "hover:bg-gray-50"} transition-colors`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? "bg-gray-700" : "bg-green-50"}`}>
-                                            <Mic className="w-4 h-4 text-green-500" />
-                                        </div>
-                                        <div>
-                                            <p className={`text-sm font-medium ${isDarkMode ? "text-white" : "text-gray-900"}`}>Microphone on join</p>
-                                            <p className={`text-xs ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>Start with mic {defaultAudio ? 'on' : 'off'}</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={toggleDefaultAudio}
-                                        className={`relative w-11 h-6 rounded-full transition-colors ${defaultAudio
-                                            ? "bg-blue-500"
-                                            : isDarkMode ? "bg-gray-600" : "bg-gray-300"
-                                            }`}
-                                    >
-                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${defaultAudio ? "translate-x-5" : "translate-x-0"
-                                            }`} />
-                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        {/* Update Profile Section (registered users only) */}
+                        {!isGuest && (
+                            <>
+                                {/* Divider */}
+                                <div className={`border-t ${isDarkMode ? "border-gray-700" : "border-gray-200"} mb-8`}></div>
 
-                    {/* Update Profile Card (registered users only) */}
-                    {!isGuest && (
-                        <div className={`${isDarkMode ? "bg-gray-800/80 border border-gray-700" : "bg-white"} rounded-2xl shadow-lg overflow-hidden mb-4 sm:mb-6`}>
-                            <div className="px-4 sm:px-6 py-4 sm:py-5">
-                                <h2 className={`text-sm font-semibold uppercase tracking-wider mb-4 flex items-center gap-2 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                                    <Lock className="w-4 h-4 text-green-500" />
-                                    Update Profile
-                                </h2>
-
-                                <form onSubmit={handleUpdateProfile} className="space-y-4">
-                                    {/* Name */}
-                                    <div>
-                                        <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-                                            Name
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={editName}
-                                            onChange={(e) => setEditName(e.target.value)}
-                                            className={inputClasses}
-                                            placeholder="Enter your name"
-                                        />
-                                    </div>
-
-                                    {/* Email */}
-                                    <div>
-                                        <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-                                            Email
-                                        </label>
-                                        <input
-                                            type="email"
-                                            value={editEmail}
-                                            onChange={(e) => setEditEmail(e.target.value)}
-                                            className={inputClasses}
-                                            placeholder="Enter your email"
-                                        />
-                                    </div>
-
-                                    {/* Current Password */}
-                                    <div>
-                                        <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-                                            Current Password
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type={showCurrentPasswordForUpdate ? "text" : "password"}
-                                                value={currentPasswordForUpdate}
-                                                onChange={(e) => setCurrentPasswordForUpdate(e.target.value)}
-                                                className={`${inputClasses} pr-10`}
-                                                placeholder="Required to save changes"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowCurrentPasswordForUpdate(!showCurrentPasswordForUpdate)}
-                                                className={`absolute right-3 top-1/2 -translate-y-1/2 p-0.5 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
-                                            >
-                                                {showCurrentPasswordForUpdate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        </div>
-                                        <p className={`text-xs mt-1.5 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
-                                            Confirm your current password to save any changes
-                                        </p>
-                                    </div>
-
-                                    {/* New Password (optional) */}
-                                    <div>
-                                        <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-                                            New Password <span className={`font-normal ${isDarkMode ? "text-gray-600" : "text-gray-400"}`}>(optional)</span>
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type={showNewPassword ? "text" : "password"}
-                                                value={newPassword}
-                                                onChange={(e) => setNewPassword(e.target.value)}
-                                                className={`${inputClasses} pr-10`}
-                                                placeholder="Leave blank to keep current"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowNewPassword(!showNewPassword)}
-                                                className={`absolute right-3 top-1/2 -translate-y-1/2 p-0.5 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
-                                            >
-                                                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        </div>
-                                        <p className={`text-xs mt-1.5 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
-                                            Minimum 8 characters
-                                        </p>
-                                    </div>
-
-                                    {updateError && (
-                                        <div className={`flex items-start gap-2 text-sm p-3 rounded-xl ${isDarkMode ? "bg-red-900/20 text-red-400" : "bg-red-50 text-red-600"}`}>
-                                            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                            {updateError}
-                                        </div>
-                                    )}
-                                    {updateSuccess && (
-                                        <div className={`flex items-start gap-2 text-sm p-3 rounded-xl ${isDarkMode ? "bg-green-900/20 text-green-400" : "bg-green-50 text-green-600"}`}>
-                                            <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                            {updateSuccess}
-                                        </div>
-                                    )}
-
-                                    <Button
-                                        type="submit"
-                                        disabled={updateLoading}
-                                        className="w-full"
-                                    >
-                                        {updateLoading ? 'Saving...' : 'Save Changes'}
-                                    </Button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Danger Zone — Delete Account (registered users only) */}
-                    {!isGuest && (
-                        <div className={`${isDarkMode ? "bg-gray-800/80 border border-red-900/40" : "bg-white border border-red-200"} rounded-2xl shadow-lg overflow-hidden`}>
-                            <div className="px-4 sm:px-6 py-4 sm:py-5">
-                                <h2 className={`text-sm font-semibold uppercase tracking-wider mb-1 flex items-center gap-2 ${isDarkMode ? "text-red-400" : "text-red-600"}`}>
-                                    <Trash2 className="w-4 h-4" />
-                                    Danger Zone
-                                </h2>
-                                <p className={`text-xs mb-4 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
-                                    Permanent and irreversible. All data will be lost.
-                                </p>
-
-                                {!deleteUnlocked ? (
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-                                                Enter your password to unlock deletion
-                                            </label>
-                                            <div className="relative">
+                                <div className="mb-8">
+                                    <h2 className={`text-lg sm:text-xl font-semibold mb-4 flex items-center gap-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+                                        <Lock className="w-5 h-5 text-green-500" />
+                                        Update Profile
+                                    </h2>
+                                    <div className={`${isDarkMode ? "bg-gray-700/50" : "bg-gray-50"} rounded-xl p-5`}>
+                                        <form onSubmit={handleUpdateProfile} className="space-y-4">
+                                            {/* Name */}
+                                            <div>
+                                                <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+                                                    Name
+                                                </label>
                                                 <input
-                                                    type={showDeletePassword ? "text" : "password"}
-                                                    value={deletePassword}
-                                                    onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(''); }}
-                                                    className={`w-full px-3.5 py-2.5 pr-10 border rounded-xl text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${isDarkMode
-                                                        ? "bg-gray-700/80 border-gray-600 text-white placeholder-gray-400"
-                                                        : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
-                                                        }`}
-                                                    placeholder="Your account password"
+                                                    type="text"
+                                                    value={editName}
+                                                    onChange={(e) => setEditName(e.target.value)}
+                                                    className={inputClasses}
+                                                    placeholder="Enter your name"
                                                 />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowDeletePassword(!showDeletePassword)}
-                                                    className={`absolute right-3 top-1/2 -translate-y-1/2 p-0.5 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                                            </div>
+
+                                            {/* Email */}
+                                            <div>
+                                                <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+                                                    Email
+                                                </label>
+                                                <input
+                                                    type="email"
+                                                    value={editEmail}
+                                                    onChange={(e) => setEditEmail(e.target.value)}
+                                                    className={inputClasses}
+                                                    placeholder="Enter your email"
+                                                />
+                                            </div>
+
+                                            {/* Current Password */}
+                                            <div>
+                                                <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+                                                    Current Password
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type={showCurrentPasswordForUpdate ? "text" : "password"}
+                                                        value={currentPasswordForUpdate}
+                                                        onChange={(e) => setCurrentPasswordForUpdate(e.target.value)}
+                                                        className={`${inputClasses} pr-10`}
+                                                        placeholder="Required to save changes"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowCurrentPasswordForUpdate(!showCurrentPasswordForUpdate)}
+                                                        className={`absolute right-3 top-1/2 -translate-y-1/2 p-0.5 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                                                    >
+                                                        {showCurrentPasswordForUpdate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
+                                                <p className={`text-xs mt-1.5 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
+                                                    Confirm your current password to save any changes
+                                                </p>
+                                            </div>
+
+                                            {/* New Password (optional) */}
+                                            <div>
+                                                <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+                                                    New Password <span className={`font-normal ${isDarkMode ? "text-gray-600" : "text-gray-400"}`}>(optional)</span>
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type={showNewPassword ? "text" : "password"}
+                                                        value={newPassword}
+                                                        onChange={(e) => setNewPassword(e.target.value)}
+                                                        className={`${inputClasses} pr-10`}
+                                                        placeholder="Leave blank to keep current"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowNewPassword(!showNewPassword)}
+                                                        className={`absolute right-3 top-1/2 -translate-y-1/2 p-0.5 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                                                    >
+                                                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
+                                                <p className={`text-xs mt-1.5 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
+                                                    Minimum 8 characters
+                                                </p>
+                                            </div>
+
+                                            {updateError && (
+                                                <div className={`flex items-start gap-2 text-sm p-3 rounded-xl ${isDarkMode ? "bg-red-900/20 text-red-400" : "bg-red-50 text-red-600"}`}>
+                                                    <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                                    {updateError}
+                                                </div>
+                                            )}
+                                            {updateSuccess && (
+                                                <div className={`flex items-start gap-2 text-sm p-3 rounded-xl ${isDarkMode ? "bg-green-900/20 text-green-400" : "bg-green-50 text-green-600"}`}>
+                                                    <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                                    {updateSuccess}
+                                                </div>
+                                            )}
+
+                                            <Button
+                                                type="submit"
+                                                disabled={updateLoading}
+                                                className="w-full"
+                                            >
+                                                {updateLoading ? 'Saving...' : 'Save Changes'}
+                                            </Button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Danger Zone — Delete Account (registered users only) */}
+                        {!isGuest && (
+                            <>
+                                {/* Divider */}
+                                <div className={`border-t ${isDarkMode ? "border-red-900/40" : "border-red-200"} mb-8`}></div>
+
+                                <div>
+                                    <h2 className={`text-lg sm:text-xl font-semibold mb-1 flex items-center gap-2 ${isDarkMode ? "text-red-400" : "text-red-600"}`}>
+                                        <Trash2 className="w-5 h-5" />
+                                        Danger Zone
+                                    </h2>
+                                    <p className={`text-sm mb-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                                        Permanent and irreversible. All data will be lost.
+                                    </p>
+                                    <div className={`${isDarkMode ? "bg-red-900/10 border border-red-900/30" : "bg-red-50 border border-red-200"} rounded-xl p-5`}>
+                                        {!deleteUnlocked ? (
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className={`block text-xs font-medium mb-1.5 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+                                                        Enter your password to unlock deletion
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type={showDeletePassword ? "text" : "password"}
+                                                            value={deletePassword}
+                                                            onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(''); }}
+                                                            className={`w-full px-3.5 py-2.5 pr-10 border rounded-xl text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${isDarkMode
+                                                                ? "bg-gray-700/80 border-gray-600 text-white placeholder-gray-400"
+                                                                : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                                                                }`}
+                                                            placeholder="Your account password"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowDeletePassword(!showDeletePassword)}
+                                                            className={`absolute right-3 top-1/2 -translate-y-1/2 p-0.5 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                                                        >
+                                                            {showDeletePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {deleteError && (
+                                                    <div className={`flex items-start gap-2 text-sm p-3 rounded-xl ${isDarkMode ? "bg-red-900/20 text-red-400" : "bg-red-50 text-red-600"}`}>
+                                                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                                        {deleteError}
+                                                    </div>
+                                                )}
+
+                                                <Button
+                                                    variant="danger"
+                                                    onClick={handleVerifyDeletePassword}
+                                                    disabled={verifyingDelete || !deletePassword}
+                                                    className="w-full"
                                                 >
-                                                    {showDeletePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </button>
+                                                    {verifyingDelete ? 'Verifying...' : 'Verify Password'}
+                                                </Button>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <div className={`flex items-center gap-2 text-sm font-medium p-3 rounded-xl ${isDarkMode ? "bg-green-900/20 text-green-400" : "bg-green-50 text-green-600"}`}>
+                                                    <Check className="w-4 h-4" />
+                                                    Password verified
+                                                </div>
 
-                                        {deleteError && (
-                                            <div className={`flex items-start gap-2 text-sm p-3 rounded-xl ${isDarkMode ? "bg-red-900/20 text-red-400" : "bg-red-50 text-red-600"}`}>
-                                                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                                {deleteError}
+                                                <p className={`text-sm font-semibold ${isDarkMode ? "text-red-400" : "text-red-700"}`}>
+                                                    Are you absolutely sure? This will permanently delete your account and all associated data.
+                                                </p>
+
+                                                {deleteError && (
+                                                    <div className={`flex items-start gap-2 text-sm p-3 rounded-xl ${isDarkMode ? "bg-red-900/20 text-red-400" : "bg-red-50 text-red-600"}`}>
+                                                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                                        {deleteError}
+                                                    </div>
+                                                )}
+
+                                                <div className="flex flex-col sm:flex-row gap-2">
+                                                    <Button
+                                                        variant="danger"
+                                                        onClick={handleDeleteAccount}
+                                                        disabled={deleteLoading}
+                                                        className="w-full sm:w-auto"
+                                                    >
+                                                        <Trash2 className="w-4 h-4 mr-1.5" />
+                                                        {deleteLoading ? 'Deleting...' : 'Delete My Account'}
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        onClick={() => {
+                                                            setDeleteUnlocked(false);
+                                                            setDeletePassword('');
+                                                            setDeleteError('');
+                                                        }}
+                                                        className={`w-full sm:w-auto ${isDarkMode ? "text-gray-300 hover:bg-gray-700" : ""}`}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </div>
                                             </div>
                                         )}
-
-                                        <Button
-                                            variant="danger"
-                                            onClick={handleVerifyDeletePassword}
-                                            disabled={verifyingDelete || !deletePassword}
-                                            className="w-full"
-                                        >
-                                            {verifyingDelete ? 'Verifying...' : 'Verify Password'}
-                                        </Button>
                                     </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <div className={`flex items-center gap-2 text-sm font-medium p-3 rounded-xl ${isDarkMode ? "bg-green-900/20 text-green-400" : "bg-green-50 text-green-600"}`}>
-                                            <Check className="w-4 h-4" />
-                                            Password verified
-                                        </div>
-
-                                        <p className={`text-sm font-semibold ${isDarkMode ? "text-red-400" : "text-red-700"}`}>
-                                            Are you absolutely sure? This will permanently delete your account and all associated data.
-                                        </p>
-
-                                        {deleteError && (
-                                            <div className={`flex items-start gap-2 text-sm p-3 rounded-xl ${isDarkMode ? "bg-red-900/20 text-red-400" : "bg-red-50 text-red-600"}`}>
-                                                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                                {deleteError}
-                                            </div>
-                                        )}
-
-                                        <div className="flex flex-col sm:flex-row gap-2">
-                                            <Button
-                                                variant="danger"
-                                                onClick={handleDeleteAccount}
-                                                disabled={deleteLoading}
-                                                className="w-full sm:w-auto"
-                                            >
-                                                <Trash2 className="w-4 h-4 mr-1.5" />
-                                                {deleteLoading ? 'Deleting...' : 'Delete My Account'}
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                onClick={() => {
-                                                    setDeleteUnlocked(false);
-                                                    setDeletePassword('');
-                                                    setDeleteError('');
-                                                }}
-                                                className={`w-full sm:w-auto ${isDarkMode ? "text-gray-300 hover:bg-gray-700" : ""}`}
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Bottom Spacer */}
-                    <div className="h-6 sm:h-10" />
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </main>
             </div>
         </>
