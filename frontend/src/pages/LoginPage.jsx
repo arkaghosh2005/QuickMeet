@@ -14,6 +14,7 @@ const LoginPage = () => {
     const { login, loading } = useAuth();
     const { isDarkMode } = useTheme();
     const navigate = useNavigate();
+    const oauthEnabled = import.meta.env.VITE_OAUTH_BUTTONS_CHECK === "true";
 
     useEffect(() => {
         // Block back navigation
@@ -185,10 +186,14 @@ const LoginPage = () => {
                         {/* OAuth Buttons */}
                         <div className="space-y-3">
                             <button
-                                disabled
-                                className={`w-full flex items-center justify-center gap-3 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-60 ${isDarkMode
-                                    ? "bg-gray-700 border-gray-600 text-gray-300"
-                                    : "bg-white border-gray-300 text-gray-700"
+                                onClick={() => window.location.href = `${import.meta.env.VITE_SERVER_URL}/v1/auth/google`}
+                                disabled={!oauthEnabled}
+                                className={`w-full flex items-center justify-center gap-3 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors ${!oauthEnabled
+                                    ? "cursor-not-allowed opacity-60"
+                                    : "hover:shadow-md"
+                                    } ${isDarkMode
+                                    ? `bg-gray-700 border-gray-600 text-gray-300 ${oauthEnabled ? "hover:bg-gray-600" : ""}`
+                                    : `bg-white border-gray-300 text-gray-700 ${oauthEnabled ? "hover:bg-gray-50" : ""}`
                                     }`}
                             >
                                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -201,10 +206,14 @@ const LoginPage = () => {
                             </button>
 
                             <button
-                                disabled
-                                className={`w-full flex items-center justify-center gap-3 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-60 ${isDarkMode
-                                    ? "bg-gray-700 border-gray-600 text-gray-300"
-                                    : "bg-white border-gray-300 text-gray-700"
+                                onClick={() => window.location.href = `${import.meta.env.VITE_SERVER_URL}/v1/auth/microsoft`}
+                                disabled={!oauthEnabled}
+                                className={`w-full flex items-center justify-center gap-3 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors ${!oauthEnabled
+                                    ? "cursor-not-allowed opacity-60"
+                                    : "hover:shadow-md"
+                                    } ${isDarkMode
+                                    ? `bg-gray-700 border-gray-600 text-gray-300 ${oauthEnabled ? "hover:bg-gray-600" : ""}`
+                                    : `bg-white border-gray-300 text-gray-700 ${oauthEnabled ? "hover:bg-gray-50" : ""}`
                                     }`}
                             >
                                 <svg className="w-5 h-5" viewBox="0 0 23 23">

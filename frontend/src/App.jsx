@@ -10,6 +10,7 @@ import SettingsPage from "./pages/SettingsPage";
 import PreCallPage from "./pages/PreCallPage";
 import VideoCallPage from "./pages/VideoCallPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 // Meeting code format: ABC-1234-XYZ (3 alphanum - 4 alphanum - 3 alphanum)
@@ -61,6 +62,7 @@ const AppRoutes = () => {
             userData ? <Navigate to="/meeting-entry" replace /> : <SignupPage />
           }
         />
+        <Route path="/auth/callback" element={<OAuthCallbackPage />} />
 
         {/* Protected Routes */}
         <Route

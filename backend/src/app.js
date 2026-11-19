@@ -18,6 +18,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import userRoutes from "./routes/users.routes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 const app = express();
 const server = createServer(app);
@@ -37,6 +38,14 @@ const authLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+const oauthLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { message: "Too many OAuth attempts. Please try again after 15 minutes." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100,
@@ -48,7 +57,7 @@ const generalLimiter = rateLimit({
 app.set("port", (process.env.PORT));
 app.use(cors({
     origin: clientUrl.split(",").map(url => url.trim()),
-    methods: ["GET", "POST", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 app.use(express.json({ limit: "40kb" }));
@@ -59,8 +68,10 @@ app.use(helmet());
 app.use(generalLimiter);
 app.use("/v1/users/login", authLimiter);
 app.use("/v1/users/signup", authLimiter);
+app.use("/v1/auth", oauthLimiter);
 
 app.use("/v1/users", userRoutes);
+app.use("/v1/auth", authRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
