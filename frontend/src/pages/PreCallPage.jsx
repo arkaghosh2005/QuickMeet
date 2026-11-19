@@ -6,7 +6,6 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
-import { silence, black } from "../utils/mediaHelpers";
 
 const server_url = import.meta.env.VITE_SERVER_URL;
 
@@ -36,14 +35,8 @@ const PreCallPage = () => {
     const [aspectRatio, setAspectRatio] = useState(16 / 9);
 
     // User Toggles
-    const [video, setVideo] = useState(() => {
-        const saved = localStorage.getItem('quickmeet_default_video');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
-    const [audio, setAudio] = useState(() => {
-        const saved = localStorage.getItem('quickmeet_default_audio');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
+    const [video, setVideo] = useState(true);
+    const [audio, setAudio] = useState(true);
 
     const stopPreviewStream = () => {
         isMountedRef.current = false;
@@ -148,6 +141,8 @@ const PreCallPage = () => {
                     video,
                     audio,
                     isHost,
+                    videoAvailable,
+                    audioAvailable,
                 },
             });
         }
@@ -212,65 +207,59 @@ const PreCallPage = () => {
         const wantVideo = !!(video && videoAvailable);
         const wantAudio = !!(audio && audioAvailable);
 
-        if (!wantVideo && !wantAudio) {
-            // completely stop preview when both toggles off
-            try {
-                const src = localVideoref.current?.srcObject;
-                if (src?.getTracks) src.getTracks().forEach(track => track.stop());
-            } catch (e) { if (import.meta.env.DEV) console.warn("stop preview failed:", e); }
-            return;
-        }
-
         if (!navigator.mediaDevices?.getUserMedia) {
             if (import.meta.env.DEV) console.warn("getUserMedia not supported.");
             return;
         }
 
-        navigator.mediaDevices.getUserMedia({ video: wantVideo, audio: wantAudio })
-            .then(getUserMediaSuccess)
-            .catch(e => {
-                if (import.meta.env.DEV) console.warn("getUserMedia request failed:", e);
-                // if request fails due to permission, update availability
-                if (wantVideo) { setVideoAvailable(false); setVideo(false); }
-                if (wantAudio) { setAudioAvailable(false); setAudio(false); }
-            });
-    };
+        // Ensure we have a persistent stream container
+        if (!localStreamRef.current) {
+            localStreamRef.current = new MediaStream();
+        }
+        const stream = localStreamRef.current;
 
-    let getUserMediaSuccess = (userStream) => {
-        if (!isMountedRef.current) {
-            userStream.getTracks().forEach(track => track.stop());
-            return;
+        // --- Handle video track independently (never touches audio) ---
+        const hasLiveVideo = stream.getVideoTracks().some(t => t.readyState === 'live');
+        if (wantVideo && !hasLiveVideo) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(vs => {
+                    if (!isMountedRef.current) { vs.getTracks().forEach(t => t.stop()); return; }
+                    stream.getVideoTracks().forEach(t => { t.stop(); stream.removeTrack(t); });
+                    const track = vs.getVideoTracks()[0];
+                    stream.addTrack(track);
+                    track.onended = () => setVideo(false);
+                    if (localVideoref.current) localVideoref.current.srcObject = stream;
+                })
+                .catch(() => { setVideoAvailable(false); setVideo(false); });
+        } else if (!wantVideo) {
+            stream.getVideoTracks().forEach(t => { t.stop(); stream.removeTrack(t); });
         }
 
-        // stop previous stream safely
-        try {
-            if (localStreamRef.current?.getTracks) localStreamRef.current.getTracks().forEach(track => track.stop());
-        } catch (e) { if (import.meta.env.DEV) console.warn(e); }
-
-        // set new stream and show in preview
-        localStreamRef.current = userStream;
-        if (localVideoref.current?.srcObject !== undefined) {
-            try { localVideoref.current.srcObject = userStream; } catch (e) { if (import.meta.env.DEV) console.warn("assign user stream failed:", e); }
+        // --- Handle audio track independently (never touches video) ---
+        const hasLiveAudio = stream.getAudioTracks().some(t => t.readyState === 'live');
+        if (wantAudio && !hasLiveAudio) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(as => {
+                    if (!isMountedRef.current) { as.getTracks().forEach(t => t.stop()); return; }
+                    stream.getAudioTracks().forEach(t => { t.stop(); stream.removeTrack(t); });
+                    const track = as.getAudioTracks()[0];
+                    stream.addTrack(track);
+                    track.onended = () => setAudio(false);
+                })
+                .catch(() => { setAudioAvailable(false); setAudio(false); });
+        } else if (!wantAudio) {
+            stream.getAudioTracks().forEach(t => { t.stop(); stream.removeTrack(t); });
         }
 
-        // when any track ends -> fallback
-        userStream.getTracks().forEach(track => {
-            track.onended = () => {
-                setVideo(false);
-                setAudio(false);
+        // Assign stream to video element if not set
+        if (localVideoref.current && !localVideoref.current.srcObject) {
+            localVideoref.current.srcObject = stream;
+        }
 
-                try {
-                    const previewSrc = localVideoref.current?.srcObject;
-                    if (previewSrc?.getTracks) previewSrc.getTracks().forEach(tr => tr.stop());
-                } catch (e) { if (import.meta.env.DEV) console.warn(e); }
-
-                const fallback = new MediaStream([black(), silence()]);
-                localStreamRef.current = fallback;
-                if (localVideoref.current?.srcObject !== undefined) {
-                    try { localVideoref.current.srcObject = fallback; } catch (e) { if (import.meta.env.DEV) console.warn("assign fallback failed:", e); }
-                }
-            };
-        });
+        // Clear video element if no tracks remain
+        if (stream.getTracks().length === 0 && localVideoref.current) {
+            localVideoref.current.srcObject = null;
+        }
     };
 
     useEffect(() => {
@@ -307,6 +296,8 @@ const PreCallPage = () => {
                     video,
                     audio,
                     isHost,
+                    videoAvailable,
+                    audioAvailable,
                 },
             });
             return;

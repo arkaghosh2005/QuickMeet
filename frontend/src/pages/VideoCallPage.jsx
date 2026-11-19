@@ -43,6 +43,8 @@ const VideoCallPage = () => {
     const isCallActiveRef = useRef(true);
     const connectionsRef = useRef({});
     const mediaReadyRef = useRef(false);
+    const lastVideoDeviceRef = useRef('');
+    const lastAudioSettingsRef = useRef('');
 
     // Get initial state from PreCallPage
     const initialState = location.state || {
@@ -218,12 +220,14 @@ const VideoCallPage = () => {
                 return { ...participant, audio, video, isScreenSharing: screenShare };
             })
         );
+    }, [audio, video, screenShare]);
 
-        // Trigger screen share if enabled
+    // Trigger screen share only when screenShare transitions to true
+    useEffect(() => {
         if (screenShare) {
             getDisplayMedia();
         }
-    }, [audio, video, screenShare]);
+    }, [screenShare]);
 
     // Sync remote participants' video and screenShare status with live track data
     useEffect(() => {
@@ -363,13 +367,12 @@ const VideoCallPage = () => {
     }, []);
 
     // Sync local stream to video element when it becomes available
+    // (e.g., when video is toggled ON and the <video> element is freshly mounted)
     useEffect(() => {
         if (localVideoRef.current && localStreamRef.current) {
-            if (localVideoRef.current.srcObject !== localStreamRef.current) {
-                localVideoRef.current.srcObject = localStreamRef.current;
-            }
+            localVideoRef.current.srcObject = localStreamRef.current;
         }
-    }, [participants]);
+    }, [participants, video]);
 
     const getDisplayMedia = () => {
         if (screenShare && navigator.mediaDevices?.getDisplayMedia) {
@@ -432,28 +435,36 @@ const VideoCallPage = () => {
             return;
         }
 
-        // Helper to check single device permission
-        const checkDevice = async (constraint) => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia(constraint);
-                stream.getTracks().forEach(track => track.stop());
-                return true;
-            } catch {
-                return false;
-            }
-        };
+        // If PreCallPage already probed device availability, trust it and skip
+        // the hardware-activating getUserMedia check (avoids brief LED flash).
+        let videoOk, audioOk;
 
-        // Check video and audio permissions in parallel
-        const [videoOk, audioOk] = await Promise.all([
-            checkDevice({ video: true }),
-            checkDevice({
-                audio: {
-                    echoCancellation,
-                    autoGainControl,
-                    noiseSuppression,
+        if (initialState.videoAvailable !== undefined && initialState.audioAvailable !== undefined) {
+            videoOk = initialState.videoAvailable;
+            audioOk = initialState.audioAvailable;
+        } else {
+            // Fallback: probe devices (e.g. direct URL access without PreCallPage)
+            const checkDevice = async (constraint) => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia(constraint);
+                    stream.getTracks().forEach(track => track.stop());
+                    return true;
+                } catch {
+                    return false;
                 }
-            })
-        ]);
+            };
+
+            [videoOk, audioOk] = await Promise.all([
+                checkDevice({ video: true }),
+                checkDevice({
+                    audio: {
+                        echoCancellation,
+                        autoGainControl,
+                        noiseSuppression,
+                    }
+                })
+            ]);
+        }
 
         // Update availability states
         setVideoAvailable(videoOk);
@@ -462,27 +473,35 @@ const VideoCallPage = () => {
         if (!audioOk) setAudio(false);
         setScreenAvailable(!!navigator.mediaDevices?.getDisplayMedia);
 
-        // Get real media stream BEFORE connecting to socket
-        // Always acquire available tracks; disable ones the user doesn't want.
-        // This ensures PCs get real tracks (not black+silence) so replaceTrack
-        // works immediately when the user toggles on.
+        // Get real media stream BEFORE connecting to socket.
+        // Only acquire the tracks the user actually wants ON from PreCallPage.
+        // For tracks the user turned off, use black/silence dummies so the
+        // camera/mic hardware is not activated (LED stays off).
         const wantVideo = !!(initialState.video && videoOk);
         const wantAudio = !!(initialState.audio && audioOk);
-        if (videoOk || audioOk) {
+
+        if (wantVideo || wantAudio) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: videoOk,
-                    audio: audioOk ? { echoCancellation, autoGainControl, noiseSuppression } : false,
+                    video: wantVideo ? (videoOk ? true : false) : false,
+                    audio: wantAudio ? (audioOk ? { echoCancellation, autoGainControl, noiseSuppression } : false) : false,
                 });
-                // Disable tracks the user turned off in PreCallPage
-                if (!wantVideo) stream.getVideoTracks().forEach(t => t.enabled = false);
-                if (!wantAudio) stream.getAudioTracks().forEach(t => t.enabled = false);
+
+                // Add dummy tracks for the ones the user doesn't want
+                if (!wantVideo) stream.addTrack(black());
+                if (!wantAudio) stream.addTrack(silence());
+
                 localStreamRef.current = stream;
                 if (localVideoRef.current) localVideoRef.current.srcObject = stream;
             } catch (e) {
                 // Will fall back to black+silence in user-joined handler
                 if (import.meta.env.DEV) console.warn('Initial getUserMedia failed:', e);
             }
+        } else {
+            // Both off — use a fully dummy stream
+            const dummyStream = new MediaStream([black(), silence()]);
+            localStreamRef.current = dummyStream;
+            if (localVideoRef.current) localVideoRef.current.srcObject = dummyStream;
         }
 
         mediaReadyRef.current = true;
@@ -535,74 +554,76 @@ const VideoCallPage = () => {
         const wantVideo = !!(video && videoAvailable);
         const wantAudio = !!(audio && audioAvailable);
 
-        if (!wantVideo && !wantAudio) {
-            localStreamRef.current?.getVideoTracks().forEach(t => t.enabled = false);
-            localStreamRef.current?.getAudioTracks().forEach(t => t.enabled = false);
-            return;
-        }
-
         if (!navigator.mediaDevices?.getUserMedia) return;
 
-        const audioConstraints = wantAudio ? {
-            deviceId: selectedAudioDevice ? { exact: selectedAudioDevice } : undefined,
-            echoCancellation,
-            autoGainControl,
-            noiseSuppression,
-        } : false;
+        const stream = localStreamRef.current;
+        if (!stream) return;
 
-        const videoConstraints = wantVideo ? {
-            deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined,
-        } : false;
-
-        navigator.mediaDevices.getUserMedia({
-            video: videoConstraints,
-            audio: audioConstraints,
-        }).then(getUserMediaSuccess)
-            .catch(() => {
-                if (wantVideo) { setVideoAvailable(false); setVideo(false); }
-                if (wantAudio) { setAudioAvailable(false); setAudio(false); }
-            });
-    };
-
-    const getUserMediaSuccess = (stream) => {
-        if (!isCallActiveRef.current) {
-            stream.getTracks().forEach(t => t.stop());
-            return;
-        }
-
-        localStreamRef.current?.getTracks().forEach(t => t.stop());
-        localStreamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-
-        const myId = socketRef.current?.id;
         const screenTrack = screenStreamRef.current?.getVideoTracks()[0];
 
-        // Replace tracks in existing peer connections
-        Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
-            if (peerId === myId) return;
+        // Detect device/settings changes to force re-acquisition of live tracks
+        const currentAudioKey = `${selectedAudioDevice}|${echoCancellation}|${autoGainControl}|${noiseSuppression}`;
+        const audioSettingsChanged = lastAudioSettingsRef.current && lastAudioSettingsRef.current !== currentAudioKey;
+        const videoDeviceChanged = lastVideoDeviceRef.current && lastVideoDeviceRef.current !== selectedVideoDevice;
 
-            const senders = pc.getSenders();
-            const videoTrack = stream.getVideoTracks()[0];
-            const audioTrack = stream.getAudioTracks()[0];
+        // --- Re-acquire video only if device changed while video is on ---
+        if (wantVideo && videoDeviceChanged) {
+            lastVideoDeviceRef.current = selectedVideoDevice;
+            const videoConstraints = selectedVideoDevice ? { deviceId: { exact: selectedVideoDevice } } : true;
+            navigator.mediaDevices.getUserMedia({ video: videoConstraints })
+                .then(vs => {
+                    if (!isCallActiveRef.current) { vs.getTracks().forEach(t => t.stop()); return; }
+                    const newTrack = vs.getVideoTracks()[0];
+                    stream.getVideoTracks().forEach(t => { t.stop(); stream.removeTrack(t); });
+                    stream.addTrack(newTrack);
 
-            // Replace video track (skip screen share track)
-            const videoSender = senders.find(s => s.track?.kind === 'video' && s.track !== screenTrack);
-            if (videoSender && videoTrack) videoSender.replaceTrack(videoTrack).catch(() => { });
+                    Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
+                        if (peerId === socketRef.current?.id) return;
+                        const videoSender = pc.getSenders().find(s => s.track?.kind === 'video' && s.track !== screenTrack);
+                        if (videoSender) videoSender.replaceTrack(newTrack).catch(() => { });
+                    });
 
-            // Replace audio track
-            const audioSender = senders.find(s => s.track?.kind === 'audio');
-            if (audioSender && audioTrack) audioSender.replaceTrack(audioTrack).catch(() => { });
-        });
+                    newTrack.onended = () => { setVideo(false); };
+                    if (localVideoRef.current) {
+                        localVideoRef.current.srcObject = null;
+                        localVideoRef.current.srcObject = stream;
+                    }
+                })
+                .catch(() => { setVideoAvailable(false); setVideo(false); });
+        }
 
-        stream.getTracks().forEach(t => {
-            t.onended = () => { setVideo(false); setAudio(false); };
-        });
+        // --- Re-acquire audio only if device/settings changed while audio is on ---
+        if (wantAudio && audioSettingsChanged) {
+            lastAudioSettingsRef.current = currentAudioKey;
+            const audioConstraints = {
+                deviceId: selectedAudioDevice ? { exact: selectedAudioDevice } : undefined,
+                echoCancellation,
+                autoGainControl,
+                noiseSuppression,
+            };
+            navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
+                .then(as => {
+                    if (!isCallActiveRef.current) { as.getTracks().forEach(t => t.stop()); return; }
+                    const newTrack = as.getAudioTracks()[0];
+                    stream.getAudioTracks().forEach(t => { t.stop(); stream.removeTrack(t); });
+                    stream.addTrack(newTrack);
+
+                    Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
+                        if (peerId === socketRef.current?.id) return;
+                        const audioSender = pc.getSenders().find(s => s.track?.kind === 'audio');
+                        if (audioSender) audioSender.replaceTrack(newTrack).catch(() => { });
+                    });
+
+                    newTrack.onended = () => { setAudio(false); };
+                })
+                .catch(() => { setAudioAvailable(false); setAudio(false); });
+        }
     };
 
-    // Re-get user media when video/audio toggles
+    // Only run getUserMedia for device/settings changes (toggles are handled inline)
     useEffect(() => {
-        if (video !== undefined && audio !== undefined) getUserMedia();
-    }, [video, audio, echoCancellation, autoGainControl, noiseSuppression, selectedAudioDevice, selectedVideoDevice]);
+        getUserMedia();
+    }, [echoCancellation, autoGainControl, noiseSuppression, selectedAudioDevice, selectedVideoDevice]);
 
     const gotMessageFromServer = (fromId, message) => {
         if (fromId === socketRef.current?.id) return;
@@ -916,15 +937,107 @@ const VideoCallPage = () => {
 
     const toggleVideo = () => {
         const newVideo = !video;
-        localStreamRef.current?.getVideoTracks().forEach(t => t.enabled = newVideo);
+        const stream = localStreamRef.current;
+        const screenTrack = screenStreamRef.current?.getVideoTracks()[0];
+
+        if (!newVideo) {
+            // Turning camera OFF: stop real video tracks to release hardware (camera light off),
+            // then replace with a black dummy track in all peer connections.
+            const blackTrack = black();
+            stream?.getVideoTracks().forEach(t => {
+                t.stop();
+                stream.removeTrack(t);
+            });
+            stream?.addTrack(blackTrack);
+
+            // Replace in peer connections so remote side gets black frame
+            Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
+                if (peerId === socketRef.current?.id) return;
+                const senders = pc.getSenders();
+                const videoSender = senders.find(s => s.track?.kind === 'video' && s.track !== screenTrack);
+                if (videoSender) videoSender.replaceTrack(blackTrack).catch(() => { });
+            });
+        } else {
+            // Turning camera ON: acquire real video track immediately
+            const videoConstraints = selectedVideoDevice ? { deviceId: { exact: selectedVideoDevice } } : true;
+            navigator.mediaDevices.getUserMedia({ video: videoConstraints })
+                .then(vs => {
+                    if (!isCallActiveRef.current) { vs.getTracks().forEach(t => t.stop()); return; }
+                    const newTrack = vs.getVideoTracks()[0];
+                    // Remove dummy video tracks from local stream
+                    stream?.getVideoTracks().forEach(t => { t.stop(); stream.removeTrack(t); });
+                    stream?.addTrack(newTrack);
+
+                    // Replace in peer connections
+                    Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
+                        if (peerId === socketRef.current?.id) return;
+                        const videoSender = pc.getSenders().find(s => s.track?.kind === 'video' && s.track !== screenTrack);
+                        if (videoSender) videoSender.replaceTrack(newTrack).catch(() => { });
+                    });
+
+                    newTrack.onended = () => { setVideo(false); };
+                    // Force re-attach so the video element picks up the new track
+                    if (localVideoRef.current) {
+                        localVideoRef.current.srcObject = null;
+                        localVideoRef.current.srcObject = stream;
+                    }
+                })
+                .catch(() => { setVideoAvailable(false); setVideo(false); });
+        }
+
         setVideo(newVideo);
+        videoRef.current = newVideo;
         socketRef.current?.emit('update-media-state', { video: newVideo, audio });
     };
 
     const toggleAudio = () => {
         const newAudio = !audio;
-        localStreamRef.current?.getAudioTracks().forEach(t => t.enabled = newAudio);
+        const stream = localStreamRef.current;
+
+        if (!newAudio) {
+            // Turning mic OFF: stop real audio tracks to release hardware,
+            // then replace with a silent dummy track in peer connections.
+            const silentTrack = silence();
+            stream?.getAudioTracks().forEach(t => {
+                t.stop();
+                stream.removeTrack(t);
+            });
+            stream?.addTrack(silentTrack);
+
+            Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
+                if (peerId === socketRef.current?.id) return;
+                const senders = pc.getSenders();
+                const audioSender = senders.find(s => s.track?.kind === 'audio');
+                if (audioSender) audioSender.replaceTrack(silentTrack).catch(() => { });
+            });
+        } else {
+            // Turning mic ON: acquire real audio track immediately
+            const audioConstraints = {
+                deviceId: selectedAudioDevice ? { exact: selectedAudioDevice } : undefined,
+                echoCancellation,
+                autoGainControl,
+                noiseSuppression,
+            };
+            navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
+                .then(as => {
+                    if (!isCallActiveRef.current) { as.getTracks().forEach(t => t.stop()); return; }
+                    const newTrack = as.getAudioTracks()[0];
+                    stream?.getAudioTracks().forEach(t => { t.stop(); stream.removeTrack(t); });
+                    stream?.addTrack(newTrack);
+
+                    Object.entries(connectionsRef.current).forEach(([peerId, pc]) => {
+                        if (peerId === socketRef.current?.id) return;
+                        const audioSender = pc.getSenders().find(s => s.track?.kind === 'audio');
+                        if (audioSender) audioSender.replaceTrack(newTrack).catch(() => { });
+                    });
+
+                    newTrack.onended = () => { setAudio(false); };
+                })
+                .catch(() => { setAudioAvailable(false); setAudio(false); });
+        }
+
         setAudio(newAudio);
+        audioRef.current = newAudio;
         socketRef.current?.emit('update-media-state', { video, audio: newAudio });
     };
 
