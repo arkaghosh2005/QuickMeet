@@ -70,13 +70,16 @@
 | **Enter-Key Quick Join** | Press `Enter` in the meeting code input to join instantly |
 | **Dark/Light Theme** | System and manual dark mode with `dark` class applied to root `<html>` and persisted in `localStorage` |
 | **User Authentication** | Token-based signup & login with bcrypt password hashing and strong password rules |
+| **OAuth Login** | Sign in with Google or Microsoft accounts — automatic account linking if the same email exists locally |
 | **Guest Access** | Join any meeting instantly as a guest without an account |
+| **Profile Management** | Update name, email, and password from the Settings page with current-password verification |
 | **One-Click Code Copy** | Copy meeting code or direct pre-call invitation link with toast feedback |
 | **Responsive Design** | Custom adaptive CSS breakpoints supporting desktop, tablet, and mobile |
 
 ### 🎮 Meeting Controls & Layout
 | Feature | Description |
 |---------|-------------|
+| **Waiting Room** | Host-controlled entry gate — participants wait until manually admitted or denied by the host |
 | **Host Identification** | Distinct badge for room creator vs participants |
 | **Participant Panel** | Real-time attendee list displaying live microphone, camera, and screen share states |
 | **Real-time Chat** | Floating in-call messaging panel with auto-scroll and unread badge count |
@@ -101,7 +104,7 @@
 | **Strong Password Policy** | Enforces minimum 8 chars, uppercase, lowercase, numbers, and special characters |
 | **DNS Resilience** | Automatic Google Public DNS (`8.8.8.8`) fallback in Node.js to resolve Atlas SRV lookups on restrictive networks |
 | **Bounded Memory** | Chat messages capped at 500 per room to prevent unbounded server memory growth |
-| **Rate Limiting** | Strict rate limits on authentication endpoints (5 req/15 min) and API (100 req/15 min) |
+| **Rate Limiting** | Strict rate limits on authentication endpoints (5 req/15 min), OAuth (20 req/15 min) and API (100 req/15 min) |
 | **Input Validation** | Strict `express-validator` rules on all authentication and history endpoints |
 | **Security Headers** | Helmet middleware configured for CSP, HSTS, and X-Frame-Options |
 | **Accidental Leave Prevention** | Browser back navigation trap, beforeunload tab-close warning, and confirmation dialog |
@@ -201,6 +204,8 @@ QuickMeet implements standard WebRTC signaling over Socket.io. For NAT traversal
 │  │    Page     │ │    Page     │ │    Page     │ │   Entry     │ │   History   │ │   Page    │  │
 │  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └─────┬─────┘  │
 │         │               │               │               │               │              │        │
+│         │          Google/Microsoft OAuth Buttons ───► Backend ───► Callback Page       │        │
+│         │               │               │               │               │              │        │
 │         └───────────────┴───────────────┴───────┬───────┴───────────────┴──────────────┘        │
 │                                                 │                                               │
 │                                                 ▼                                               │
@@ -258,14 +263,22 @@ QuickMeet implements standard WebRTC signaling over Socket.io. For NAT traversal
 │  │                              USER CONTROLLER (userController.js)                         │   │
 │  │  • POST /v1/users/signup (409 on duplicate)  • GET /v1/users/history                     │   │
 │  │  • POST /v1/users/login (7-day JWT)          • POST /v1/users/history (upsert)           │   │
-│  │  • DELETE /v1/users/history                  • Sanitized generic 500 error responses     │   │
+│  │  • PUT /v1/users/profile                     • DELETE /v1/users/history                  │   │
+│  │  • POST /v1/users/verify-password            • DELETE /v1/users/account                  │   │
+│  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                                 │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                              AUTH CONTROLLER (authController.js)                          │   │
+│  │  • GET /v1/auth/google (redirect to consent)  • GET /v1/auth/google/callback             │   │
+│  │  • GET /v1/auth/microsoft (redirect)           • GET /v1/auth/microsoft/callback          │   │
+│  │  • Auto account linking by email              • JWT token + redirect to frontend          │   │
 │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
 └────────────────────────────────────────────────────┬────────────────────────────────────────────┘
                                                      │
                                                      ▼ Mongoose ODM
                                       ┌─────────────────────────────┐
                                       │        MongoDB Atlas        │
-                                      │  • Users Collection         │
+                                      │  • Users (local + OAuth)    │
                                       │  • Meetings (30-day TTL)    │
                                       └─────────────────────────────┘
 ```
@@ -307,16 +320,20 @@ quickmeet/
 │   │   │   ├── __tests__/             # Page logic unit tests
 │   │   │   │   └── MeetingCode.test.js# Code generation & formatting tests
 │   │   │   ├── LandingPage.jsx        # Landing hero & guest join
-│   │   │   ├── LoginPage.jsx          # Login form
-│   │   │   ├── SignupPage.jsx         # Registration with password strength
+│   │   │   ├── LoginPage.jsx          # Login form with OAuth buttons
+│   │   │   ├── SignupPage.jsx         # Registration with OAuth & password strength
+│   │   │   ├── OAuthCallbackPage.jsx  # OAuth redirect handler
 │   │   │   ├── MeetingEntryPage.jsx   # Create/Join with auto-dash formatting
 │   │   │   ├── MeetingHistoryPage.jsx # Past meetings list
+│   │   │   ├── SettingsPage.jsx       # Profile, preferences & account management
 │   │   │   ├── NotFoundPage.jsx       # Custom 404 page
 │   │   │   ├── PreCallPage.jsx        # Hardware preview & setup
 │   │   │   └── VideoCallPage.jsx      # Video conferencing interface
 │   │   │
 │   │   ├── test/                      # Test configuration & setup
 │   │   │   └── setup.js               # Test teardown & cleanup
+│   │   ├── utils/                     # Utility helpers
+│   │   │   └── mediaHelpers.js        # Dummy audio/video track generators
 │   │   ├── App.jsx                    # Root routing & route guards
 │   │   ├── main.jsx                   # Entry point (HelmetProvider)
 │   │   ├── index.css                  # Tailwind styles & reduced motion
@@ -333,12 +350,14 @@ quickmeet/
 ├── backend/                           # Node.js Backend Server
 │   ├── src/
 │   │   ├── controllers/
+│   │   │   ├── authController.js      # Google & Microsoft OAuth handlers
 │   │   │   ├── socketManager.js       # WebSocket signaling & XSS sanitize
 │   │   │   └── userController.js      # Auth & meeting history handlers
 │   │   ├── models/
-│   │   │   ├── userModel.js           # User Mongoose schema
+│   │   │   ├── userModel.js           # User schema (local + OAuth providers)
 │   │   │   └── meetingModel.js        # Meeting schema (30-day TTL index)
 │   │   ├── routes/
+│   │   │   ├── authRoutes.js          # OAuth redirect & callback routes
 │   │   │   └── users.routes.js        # Express routes & express-validator
 │   │   ├── middleware/
 │   │   │   └── auth.js                # JWT authentication middleware
@@ -383,8 +402,15 @@ Create and configure your `.env` files in both directories:
 PORT=3000
 NODE_ENV=development
 CLIENT_URL=http://localhost:5173
+SERVER_URL=http://localhost:3000
 MONGO_URL=mongodb+srv://<username>:<password>@cluster.mongodb.net/QuickMeet
 JWT_SECRET=your_super_secret_key_minimum_64_characters_recommended
+
+# OAuth (optional — set VITE_OAUTH_BUTTONS_CHECK=true in frontend to enable)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+MICROSOFT_CLIENT_ID=your_microsoft_client_id
+MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
 ```
 
 **Frontend (`frontend/.env`):**
@@ -400,6 +426,9 @@ VITE_STUN_URL_5=stun:stun4.l.google.com:19302
 VITE_TURN_URL=turn:your-turn-server.com:3478
 VITE_TURN_USERNAME=your_username
 VITE_TURN_CREDENTIAL=your_credential
+
+# OAuth Buttons (set to true once Google/Microsoft credentials are configured)
+VITE_OAUTH_BUTTONS_CHECK=false
 ```
 
 ### 3. Install Dependencies & Start Backend
@@ -458,8 +487,13 @@ npm test
 | `PORT` | HTTP & WebSocket server port | `3000` |
 | `NODE_ENV` | Environment mode (`development` or `production`) | `development` |
 | `CLIENT_URL` | Allowed CORS origins (comma-separated for multiple) | `http://localhost:5173` |
+| `SERVER_URL` | Backend's own public URL (used for OAuth callback URIs) | `http://localhost:3000` |
 | `MONGO_URL` | MongoDB Atlas or local connection string | `mongodb+srv://...` |
 | `JWT_SECRET` | Secret key used to sign and verify JWT tokens | 64+ char random hex |
+| `GOOGLE_CLIENT_ID` | *(Optional)* Google OAuth 2.0 Client ID | From Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | *(Optional)* Google OAuth 2.0 Client Secret | From Google Cloud Console |
+| `MICROSOFT_CLIENT_ID` | *(Optional)* Microsoft Entra App (client) ID | From Azure Portal |
+| `MICROSOFT_CLIENT_SECRET` | *(Optional)* Microsoft Entra Client Secret value | From Azure Portal |
 
 ### Frontend (`frontend/.env`)
 
@@ -470,6 +504,7 @@ npm test
 | `VITE_TURN_URL` | *(Optional)* TURN server URI | `turn:openrelay.metered.ca:80` |
 | `VITE_TURN_USERNAME` | *(Optional)* TURN authentication username | `openrelayproject` |
 | `VITE_TURN_CREDENTIAL` | *(Optional)* TURN authentication credential | `openrelayproject` |
+| `VITE_OAUTH_BUTTONS_CHECK` | Enable (`true`) or disable (`false`) Google/Microsoft OAuth buttons | `false` |
 
 ---
 
@@ -522,6 +557,74 @@ Authenticates a user and returns a 7-day JWT token.
   ```
 - `401 Unauthorized` — Invalid password
 - `404 Not Found` — User not found
+
+---
+
+### OAuth Endpoints
+
+#### `GET /v1/auth/google`
+Redirects the user to Google's OAuth consent screen. After authorization, Google redirects to `/v1/auth/google/callback`, which exchanges the code for user info, creates or links the account, and redirects the browser to the frontend `/auth/callback` page with a JWT token.
+
+#### `GET /v1/auth/microsoft`
+Redirects the user to Microsoft's OAuth consent screen. Same flow as Google — callback at `/v1/auth/microsoft/callback`, then redirect to frontend with JWT.
+
+> **Note:** OAuth buttons are hidden by default. Set `VITE_OAUTH_BUTTONS_CHECK=true` in the frontend `.env` after configuring OAuth credentials.
+
+---
+
+### Profile & Account Endpoints
+
+All profile endpoints require the `Authorization: Bearer <token>` header.
+
+#### `PUT /v1/users/profile`
+Updates the authenticated user's name, email, and optionally password.
+
+**Request Body:**
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "currentPassword": "Password123!",
+  "newPassword": "NewPassword456!"
+}
+```
+
+**Responses:**
+- `200 OK` — Profile updated, returns new token and user data
+- `401 Unauthorized` — Current password is incorrect
+- `409 Conflict` — New email already in use
+
+---
+
+#### `POST /v1/users/verify-password`
+Verifies the user's password (used in the delete account confirmation flow).
+
+**Request Body:**
+```json
+{
+  "password": "Password123!"
+}
+```
+
+**Responses:**
+- `200 OK` — Password verified
+- `401 Unauthorized` — Incorrect password
+
+---
+
+#### `DELETE /v1/users/account`
+Permanently deletes the user account and all associated meeting history.
+
+**Request Body:**
+```json
+{
+  "password": "Password123!"
+}
+```
+
+**Responses:**
+- `200 OK` — Account deleted
+- `401 Unauthorized` — Incorrect password
 
 ---
 
@@ -597,10 +700,15 @@ Uptime health check endpoint for monitoring probes.
 ```
 Landing Page (Guest Join / Login / Signup)
          │
-         ▼
-    Login / Signup
-         │
-         ▼
+         ├── Email/Password Login
+         │        │
+         ├── Google / Microsoft OAuth
+         │        │
+         │        ▼
+         │   OAuth Callback Page
+         │   (Auto-login & redirect)
+         │        │
+         ▼        ▼
   Meeting Entry Page ◄────────────┐
   (Create or Join Meeting)        │
          │                        │
@@ -609,6 +717,10 @@ Landing Page (Guest Join / Login / Signup)
          ▼                        │
     Pre-Call Page         Meeting History Page
   (Preview & Settings)    (View/Rejoin/Delete)
+         │                        │
+         ▼                 Settings Page
+    Waiting Room          (Profile & Account)
+  (If host enabled)
          │
          ▼
     Video Call Page
