@@ -87,18 +87,14 @@ const SignupPage = () => {
 
         try {
             const trimmedName = formData.fullName.trim();
-            let response = await signup(
+            const response = await signup(
                 trimmedName,
                 formData.email,
                 formData.password
             );
             setSuccessMessage({ general: response });
-            setFormData({
-                fullName: "",
-                email: "",
-                password: "",
-                retypePassword: "",
-            });
+            await new Promise(resolve => setTimeout(resolve, 2500));
+            navigate('/meeting-entry');
         } catch (error) {
             setErrors({
                 general: error.message || "Something went wrong. Please try again.",

@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // Signup Handler
+  // Signup Handler — auto-logs in after successful registration
   const signup = async (fullName, email, password) => {
     setLoading(true);
     try {
@@ -81,6 +81,12 @@ export const AuthProvider = ({ children }) => {
         password: password,
       });
       if (request.status === 201) {
+        // Auto-login if backend returns token + user
+        if (request.data.token && request.data.user) {
+          setUserData(request.data.user);
+          localStorage.setItem("userData", JSON.stringify(request.data.user));
+          localStorage.setItem("token", request.data.token);
+        }
         return request.data.message;
       }
     } catch (error) {

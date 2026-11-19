@@ -58,7 +58,18 @@ const signup = async (req, res) => {
         });
 
         await newUser.save();
-        res.status(httpStatus.CREATED).json({ message: "User has been Registered. Please Login." })
+
+        // Auto-login: generate token and return user data
+        const token = jwt.sign(
+            { id: newUser._id, email: newUser.email, name: newUser.name },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+        res.status(httpStatus.CREATED).json({
+            message: "Account created successfully!",
+            token,
+            user: { id: newUser._id, name: newUser.name, email: newUser.email }
+        })
     } catch (e) {
         res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: `Something went Wrong.` })
     }
