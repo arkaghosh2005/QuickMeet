@@ -4,13 +4,15 @@ import { MicOff } from 'lucide-react';
 const ParticipantTile = React.memo(({
     participant,
     spanClass,
+    tileStyle,
     getParticipantVideoElement,
     getInitials,
     isVideoOn,
 }) => {
     return (
         <div
-            className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[120px] sm:min-h-[180px] md:min-h-0 ${spanClass}`}
+            className={`relative bg-gray-800 rounded-xl overflow-hidden ${!tileStyle ? 'min-h-[120px] sm:min-h-[180px] md:min-h-0' : ''} ${spanClass}`}
+            style={tileStyle || {}}
         >
             {isVideoOn && participant.video ? (
                 getParticipantVideoElement(participant)
@@ -42,6 +44,14 @@ const ParticipantTile = React.memo(({
         </div>
     );
 }, (prev, next) => {
+    // Shallow compare tileStyle objects
+    const sameStyle = prev.tileStyle === next.tileStyle || (
+        prev.tileStyle && next.tileStyle
+        && prev.tileStyle.width === next.tileStyle.width
+        && prev.tileStyle.maxWidth === next.tileStyle.maxWidth
+        && prev.tileStyle.height === next.tileStyle.height
+    );
+
     return prev.participant.id === next.participant.id
         && prev.participant.video === next.participant.video
         && prev.participant.audio === next.participant.audio
@@ -49,7 +59,8 @@ const ParticipantTile = React.memo(({
         && prev.participant.isMe === next.participant.isMe
         && prev.participant.isHost === next.participant.isHost
         && prev.spanClass === next.spanClass
-        && prev.isVideoOn === next.isVideoOn;
+        && prev.isVideoOn === next.isVideoOn
+        && sameStyle;
 });
 
 ParticipantTile.displayName = 'ParticipantTile';

@@ -99,7 +99,7 @@ const addToHistory = async (req, res) => {
         await Meeting.findOneAndUpdate(
             { user_id: userEmail, meetingCode: meeting_code },
             { date: new Date() },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         );
 
         res.status(httpStatus.CREATED).json({ message: "Meeting added to history" });

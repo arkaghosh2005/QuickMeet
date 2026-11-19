@@ -118,6 +118,9 @@ const VideoCallPage = () => {
     // Meeting password/lock (#36)
     const [roomSettings, setRoomSettings] = useState({ hasPassword: false, isLocked: false });
     const [passwordInput, setPasswordInput] = useState('');
+
+    // Responsive layout detection
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
     const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
     useEffect(() => {
@@ -192,6 +195,13 @@ const VideoCallPage = () => {
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
+    }, []);
+
+    // Responsive layout: track window width for mobile detection
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 640);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     // Update current user's audio/video/screenShare state in participants when toggled
@@ -275,23 +285,17 @@ const VideoCallPage = () => {
         const visibleVideoOff = remoteWithoutVideo.slice(0, Math.max(0, videoOffSlots));
         const overflowCount = remoteWithoutVideo.length - visibleVideoOff.length;
 
-        // Grid class based on participant count (only when no screen shares)
+        // Layout mode: 'grid' for screen shares, 'flex' for Google Meet style
         const count = participants.length;
         let gridClass;
+        let layoutMode = 'flex'; // default Google Meet style
 
         if (screenCount > 0) {
+            layoutMode = 'grid';
             gridClass = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 auto-rows-fr";
-        } else if (count === 1) {
-            gridClass = "grid grid-cols-1 gap-2 sm:gap-4 h-full";
-        } else if (count === 2) {
-            gridClass = "grid grid-cols-2 gap-2 sm:gap-4 h-full";
-        } else if (count <= 4) {
-            // Mobile: 2x2 grid, Desktop: 2x2 grid
-            gridClass = "grid grid-cols-2 gap-2 sm:gap-4 sm:grid-rows-2 sm:h-full";
-        } else if (count <= 6) {
-            gridClass = "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 sm:grid-rows-2 sm:h-full";
         } else {
-            gridClass = "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4 auto-rows-fr";
+            // Google Meet flex layout — computed via inline styles in render
+            gridClass = "";
         }
 
         return {
@@ -303,9 +307,10 @@ const VideoCallPage = () => {
             overflowCount,
             showOverflow: needsOverflow && overflowCount > 0,
             participantGridClass: gridClass,
+            layoutMode,
             totalParticipantCount: count,
         };
-    }, [screenShare, screenShares, participants, initialState.displayName]);
+    }, [screenShare, screenShares, participants, initialState.displayName, isMobile]);
 
     const stopAllMediaStreams = () => {
         isCallActiveRef.current = false;
@@ -1117,16 +1122,14 @@ const VideoCallPage = () => {
     const participantText = participantCount === 1 ? "participant" : "participants";
 
     const getGridClasses = () => {
-        const { screenShareCount, participantGridClass } = layoutData;
-        if (screenShareCount >= 1) {
-            return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 auto-rows-fr";
+        const { screenShareCount, participantGridClass, layoutMode } = layoutData;
+        if (layoutMode === 'grid') {
+            if (screenShareCount >= 1) {
+                return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 auto-rows-fr";
+            }
+            return participantGridClass;
         }
-        return participantGridClass;
-    };
-
-    const getParticipantSpanClass = () => {
-        const { screenShareCount } = layoutData;
-        if (screenShareCount > 0) return "";
+        // flex mode — no grid classes needed, handled by inline wrapper
         return "";
     };
 
@@ -1135,7 +1138,7 @@ const VideoCallPage = () => {
             return (
                 <video ref={localVideoRef} autoPlay muted playsInline
                     style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
-                    className="w-full h-full object-contain bg-black"
+                    className="w-full h-full object-cover bg-black"
                 />
             );
         }
@@ -1154,7 +1157,7 @@ const VideoCallPage = () => {
                     }
                 }}
                 style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
-                className="w-full h-full object-contain bg-black"
+                className="w-full h-full object-cover bg-black"
             />
         );
     };
@@ -1281,89 +1284,177 @@ const VideoCallPage = () => {
                 <div className="flex-1 flex overflow-hidden">
                     <div className={`flex-1 relative`}>
                         <div className="h-full p-2 sm:p-4 pb-16 sm:pb-20 md:pb-24 overflow-y-auto md:overflow-hidden">
-                            <div className={`${getGridClasses()} min-h-full md:h-full`}>
-                                {/* Render Screen Shares First */}
-                                {layoutData.screenShares.map((share, index) => (
-                                    <div
-                                        key={`screen-${share.id}-${index}`}
-                                        className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[140px] sm:min-h-[200px] ${layoutData.screenShareCount === 1
-                                            ? "lg:col-span-3 lg:row-span-2"
-                                            : layoutData.screenShareCount === 2 && index < 2
-                                                ? "lg:col-span-3"
-                                                : ""
-                                            }`}
-                                    >
-                                        {share.isMyScreen ? (
-                                            <video
-                                                ref={screenVideoRef}
-                                                autoPlay
-                                                muted
-                                                playsInline
-                                                className="w-full h-full object-contain bg-black"
-                                            />
-                                        ) : (
-                                            <video
-                                                autoPlay
-                                                playsInline
-                                                ref={(videoElement) => {
-                                                    if (videoElement && share.stream && videoElement.srcObject !== share.stream) {
-                                                        videoElement.srcObject = share.stream;
-                                                    }
-                                                }}
-                                                className="w-full h-full object-contain bg-black"
-                                            />
-                                        )}
+                            {layoutData.layoutMode === 'grid' ? (
+                                /* Screen share mode — CSS grid layout */
+                                <div className={`${getGridClasses()} min-h-full md:h-full`}>
+                                    {layoutData.screenShares.map((share, index) => (
+                                        <div
+                                            key={`screen-${share.id}-${index}`}
+                                            className={`relative bg-gray-800 rounded-lg overflow-hidden min-h-[140px] sm:min-h-[200px] ${layoutData.screenShareCount === 1
+                                                ? "lg:col-span-3 lg:row-span-2"
+                                                : layoutData.screenShareCount === 2 && index < 2
+                                                    ? "lg:col-span-3"
+                                                    : ""
+                                                }`}
+                                        >
+                                            {share.isMyScreen ? (
+                                                <video
+                                                    ref={screenVideoRef}
+                                                    autoPlay
+                                                    muted
+                                                    playsInline
+                                                    className="w-full h-full object-contain bg-black"
+                                                />
+                                            ) : (
+                                                <video
+                                                    autoPlay
+                                                    playsInline
+                                                    ref={(videoElement) => {
+                                                        if (videoElement && share.stream && videoElement.srcObject !== share.stream) {
+                                                            videoElement.srcObject = share.stream;
+                                                        }
+                                                    }}
+                                                    className="w-full h-full object-contain bg-black"
+                                                />
+                                            )}
 
-                                        <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 bg-black bg-opacity-70 text-white px-2 py-0.5 sm:px-3 sm:py-1 rounded text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
-                                            <Monitor className="w-3 h-3 sm:w-4 sm:h-4" />
-                                            <span className="truncate max-w-[100px] sm:max-w-none">{share.name}'s Screen</span>
+                                            <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 bg-black bg-opacity-70 text-white px-2 py-0.5 sm:px-3 sm:py-1 rounded text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
+                                                <Monitor className="w-3 h-3 sm:w-4 sm:h-4" />
+                                                <span className="truncate max-w-[100px] sm:max-w-none">{share.name}'s Screen</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
 
-                                {/* Render Video ON Participants */}
-                                {layoutData.visibleVideoOnParticipants.map((participant) => (
-                                    <ParticipantTile
-                                        key={`participant-on-${participant.id}`}
-                                        participant={participant}
-                                        spanClass={getParticipantSpanClass()}
-                                        getParticipantVideoElement={getParticipantVideoElement}
-                                        getInitials={getInitials}
-                                        isVideoOn={true}
-                                    />
-                                ))}
+                                    {layoutData.visibleVideoOnParticipants.map((participant) => (
+                                        <ParticipantTile
+                                            key={`participant-on-${participant.id}`}
+                                            participant={participant}
+                                            spanClass=""
+                                            getParticipantVideoElement={getParticipantVideoElement}
+                                            getInitials={getInitials}
+                                            isVideoOn={true}
+                                        />
+                                    ))}
 
-                                {/* Render Video OFF Participants */}
-                                {layoutData.visibleVideoOffParticipants.map((participant) => (
-                                    <ParticipantTile
-                                        key={`participant-off-${participant.id}`}
-                                        participant={participant}
-                                        spanClass={getParticipantSpanClass()}
-                                        getParticipantVideoElement={getParticipantVideoElement}
-                                        getInitials={getInitials}
-                                        isVideoOn={false}
-                                    />
-                                ))}
+                                    {layoutData.visibleVideoOffParticipants.map((participant) => (
+                                        <ParticipantTile
+                                            key={`participant-off-${participant.id}`}
+                                            participant={participant}
+                                            spanClass=""
+                                            getParticipantVideoElement={getParticipantVideoElement}
+                                            getInitials={getInitials}
+                                            isVideoOn={false}
+                                        />
+                                    ))}
 
-                                {/* Overflow Indicator */}
-                                {layoutData.showOverflow && (
-                                    <div
-                                        key="overflow-indicator"
-                                        onClick={toggleParticipants}
-                                        className={`relative bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors min-h-[120px] sm:min-h-[180px] md:min-h-0 ${getParticipantSpanClass()}`}
-                                    >
-                                        <div className="w-full h-full flex flex-col items-center justify-center">
-                                            <UserPlus className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mb-2 sm:mb-3" />
-                                            <span className="text-2xl sm:text-4xl font-bold text-white mb-1 sm:mb-2">
-                                                +{layoutData.overflowCount}
-                                            </span>
-                                            <span className="text-sm text-gray-300">
-                                                More Participants
-                                            </span>
+                                    {layoutData.showOverflow && (
+                                        <div
+                                            key="overflow-indicator"
+                                            onClick={toggleParticipants}
+                                            className="relative bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors min-h-[120px] sm:min-h-[180px] md:min-h-0"
+                                        >
+                                            <div className="w-full h-full flex flex-col items-center justify-center">
+                                                <UserPlus className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mb-2 sm:mb-3" />
+                                                <span className="text-2xl sm:text-4xl font-bold text-white mb-1 sm:mb-2">
+                                                    +{layoutData.overflowCount}
+                                                </span>
+                                                <span className="text-sm text-gray-300">
+                                                    More Participants
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
+                            ) : (
+                                /* Google Meet style layout — row-based flex with centered last row */
+                                (() => {
+                                    const allTiles = [
+                                        ...layoutData.visibleVideoOnParticipants.map(p => ({ type: 'on', participant: p })),
+                                        ...layoutData.visibleVideoOffParticipants.map(p => ({ type: 'off', participant: p })),
+                                        ...(layoutData.showOverflow ? [{ type: 'overflow' }] : []),
+                                    ];
+                                    const total = allTiles.length;
+
+                                    // Google Meet column pattern — fewer cols on mobile
+                                    let cols;
+                                    if (isMobile) {
+                                        cols = total <= 1 ? 1 : 2;
+                                    } else {
+                                        if (total <= 1) cols = 1;
+                                        else if (total <= 4) cols = 2;
+                                        else if (total <= 9) cols = 3;
+                                        else cols = 4;
+                                    }
+
+                                    const rows = Math.ceil(total / cols);
+                                    const gap = isMobile ? 4 : 8;
+
+                                    // Split tiles into rows for centering the last row
+                                    const tileRows = [];
+                                    for (let r = 0; r < rows; r++) {
+                                        tileRows.push(allTiles.slice(r * cols, r * cols + cols));
+                                    }
+
+                                    return (
+                                        <div
+                                            className="flex flex-col justify-center h-full w-full"
+                                            style={{ gap: `${gap}px` }}
+                                        >
+                                            {tileRows.map((row, rowIndex) => (
+                                                <div
+                                                    key={`row-${rowIndex}`}
+                                                    className="flex justify-center items-center"
+                                                    style={{
+                                                        gap: `${gap}px`,
+                                                        height: `calc((100% - ${(rows - 1) * gap}px) / ${rows})`,
+                                                    }}
+                                                >
+                                                    {row.map((tile) => {
+                                                        const tileStyle = {
+                                                            width: `calc((100% - ${(cols - 1) * gap}px) / ${cols})`,
+                                                            maxWidth: `calc((100% - ${(cols - 1) * gap}px) / ${cols})`,
+                                                            height: '100%',
+                                                        };
+
+                                                        if (tile.type === 'overflow') {
+                                                            return (
+                                                                <div
+                                                                    key="overflow-indicator"
+                                                                    onClick={toggleParticipants}
+                                                                    className="relative bg-gray-800 rounded-xl overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors"
+                                                                    style={tileStyle}
+                                                                >
+                                                                    <div className="w-full h-full flex flex-col items-center justify-center">
+                                                                        <UserPlus className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mb-2 sm:mb-3" />
+                                                                        <span className="text-2xl sm:text-4xl font-bold text-white mb-1 sm:mb-2">
+                                                                            +{layoutData.overflowCount}
+                                                                        </span>
+                                                                        <span className="text-sm text-gray-300">
+                                                                            More Participants
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <ParticipantTile
+                                                                key={`participant-${tile.type}-${tile.participant.id}`}
+                                                                participant={tile.participant}
+                                                                spanClass=""
+                                                                tileStyle={tileStyle}
+                                                                getParticipantVideoElement={getParticipantVideoElement}
+                                                                getInitials={getInitials}
+                                                                isVideoOn={tile.type === 'on'}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()
+                            )}
                         </div>
 
                         {/* Controls */}
