@@ -204,7 +204,7 @@ QuickMeet implements standard WebRTC signaling over Socket.io. For NAT traversal
 │  │    Page     │ │    Page     │ │    Page     │ │   Entry     │ │   History   │ │   Page    │  │
 │  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └─────┬─────┘  │
 │         │               │               │               │               │              │        │
-│         │          Google/Microsoft OAuth Buttons ───► Backend ───► Callback Page       │        │
+│         │          Google/Microsoft OAuth Buttons ───► Backend ───► Callback Page      │        │
 │         │               │               │               │               │              │        │
 │         └───────────────┴───────────────┴───────┬───────┴───────────────┴──────────────┘        │
 │                                                 │                                               │
@@ -268,10 +268,10 @@ QuickMeet implements standard WebRTC signaling over Socket.io. For NAT traversal
 │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                                 │
 │  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                              AUTH CONTROLLER (authController.js)                          │   │
+│  │                              AUTH CONTROLLER (authController.js)                         │   │
 │  │  • GET /v1/auth/google (redirect to consent)  • GET /v1/auth/google/callback             │   │
-│  │  • GET /v1/auth/microsoft (redirect)           • GET /v1/auth/microsoft/callback          │   │
-│  │  • Auto account linking by email              • JWT token + redirect to frontend          │   │
+│  │  • GET /v1/auth/microsoft (redirect)           • GET /v1/auth/microsoft/callback         │   │
+│  │  • Auto account linking by email              • JWT token + redirect to frontend         │   │
 │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │
 └────────────────────────────────────────────────────┬────────────────────────────────────────────┘
                                                      │
@@ -302,8 +302,6 @@ quickmeet/
 │   │   └── sitemap.xml                # XML sitemap for SEO
 │   ├── src/
 │   │   ├── components/                # Reusable UI Components
-│   │   │   ├── __tests__/             # Component tests
-│   │   │   │   └── Button.test.jsx    # Button unit tests
 │   │   │   ├── Button.jsx             # Accessible button with variants
 │   │   │   ├── ChatPanel.jsx          # Floating in-call chat
 │   │   │   ├── ConfirmModal.jsx       # Accessible modal dialog
@@ -317,8 +315,6 @@ quickmeet/
 │   │   │   └── ThemeContext.jsx       # Dark mode state & HTML class toggle
 │   │   │
 │   │   ├── pages/                     # Application Routes
-│   │   │   ├── __tests__/             # Page logic unit tests
-│   │   │   │   └── MeetingCode.test.js# Code generation & formatting tests
 │   │   │   ├── LandingPage.jsx        # Landing hero & guest join
 │   │   │   ├── LoginPage.jsx          # Login form with OAuth buttons
 │   │   │   ├── SignupPage.jsx         # Registration with OAuth & password strength
@@ -330,8 +326,23 @@ quickmeet/
 │   │   │   ├── PreCallPage.jsx        # Hardware preview & setup
 │   │   │   └── VideoCallPage.jsx      # Video conferencing interface
 │   │   │
-│   │   ├── test/                      # Test configuration & setup
-│   │   │   └── setup.js               # Test teardown & cleanup
+│   │   ├── __tests__/                 # Test suite (Vitest + RTL)
+│   │   │   ├── components/            # Component tests
+│   │   │   │   ├── Button.test.jsx    # Button variants & interactions
+│   │   │   │   ├── ChatPanel.test.jsx # Chat panel rendering & a11y
+│   │   │   │   ├── ConfirmModal.test.jsx # Modal behavior & aria attrs
+│   │   │   │   ├── ErrorBoundary.test.jsx # Error fallback UI
+│   │   │   │   └── Skeleton.test.jsx  # Skeleton loading component
+│   │   │   ├── context/               # Context tests
+│   │   │   │   └── ThemeContext.test.jsx # Dark mode toggle + localStorage
+│   │   │   ├── pages/                 # Page logic tests
+│   │   │   │   ├── MeetingCode.test.js# Code generation & formatting
+│   │   │   │   └── MeetingEntryPage.test.js # formatMeetingCode utility
+│   │   │   ├── utils/                 # Utility tests
+│   │   │   │   └── mediaHelpers.test.js # silence() and black() helpers
+│   │   │   ├── all.test.js            # Test suite documentation
+│   │   │   └── test-setup.js          # jsdom polyfills & jest-dom setup
+│   │   │
 │   │   ├── utils/                     # Utility helpers
 │   │   │   └── mediaHelpers.js        # Dummy audio/video track generators
 │   │   ├── App.jsx                    # Root routing & route guards
@@ -461,7 +472,7 @@ Open your browser at `http://localhost:5173`.
 
 ## 🧪 Running Tests
 
-QuickMeet includes automated unit and component tests using **Vitest** and **React Testing Library**.
+QuickMeet includes **44 automated tests** across 10 test files using **Vitest** and **React Testing Library** — covering components, context providers, page utilities, and media helpers.
 
 To run the test suite:
 
