@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import { ThemeProvider, useTheme } from '../../context/ThemeContext';
 
 // Test component that exposes theme state
@@ -16,6 +16,7 @@ const TestConsumer = () => {
 describe('ThemeContext', () => {
     beforeEach(() => {
         localStorage.clear();
+        document.documentElement.classList.remove('dark');
     });
 
     it('defaults to light mode when no localStorage', () => {
@@ -27,17 +28,20 @@ describe('ThemeContext', () => {
         expect(screen.getByTestId('mode')).toHaveTextContent('light');
     });
 
-    it('reads dark mode from localStorage', () => {
-        localStorage.setItem('darkMode', 'true');
+    it('reads dark mode from localStorage', async () => {
+        localStorage.setItem('theme', 'dark');
         render(
             <ThemeProvider>
                 <TestConsumer />
             </ThemeProvider>
         );
-        expect(screen.getByTestId('mode')).toHaveTextContent('dark');
+        // ThemeContext reads localStorage in useEffect (async), so wait for update
+        await waitFor(() => {
+            expect(screen.getByTestId('mode')).toHaveTextContent('dark');
+        });
     });
 
-    it('toggles dark mode', () => {
+    it('toggles dark mode', async () => {
         render(
             <ThemeProvider>
                 <TestConsumer />
@@ -48,7 +52,6 @@ describe('ThemeContext', () => {
             screen.getByText('Toggle').click();
         });
         expect(screen.getByTestId('mode')).toHaveTextContent('dark');
-        expect(localStorage.getItem('darkMode')).toBe('true');
+        expect(localStorage.getItem('theme')).toBe('dark');
     });
 });
-

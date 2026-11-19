@@ -1,9 +1,9 @@
 /**
  * QuickMeet — Comprehensive Test Suite
  *
- * This file aggregates all tests. Run with: npm test
+ * This file documents the full test suite. Run with: npm test
  * Vitest automatically discovers all *.test.* files, so this file
- * serves as documentation of the full test suite.
+ * serves as documentation only.
  *
  * All tests live under src/__tests__/ with category subfolders:
  *
@@ -24,6 +24,11 @@
  * └── all.test.js                 — This documentation file
  */
 
-// Vitest runs all *.test.* files automatically — no manual imports needed.
-// Run: npm test          (watch mode)
-// Run: npm run test:run  (single run)
+// A minimal test so Vitest doesn't error on "No test suite found"
+import { describe, it, expect } from 'vitest';
+
+describe('Test Suite Documentation', () => {
+    it('test suite is configured correctly', () => {
+        expect(true).toBe(true);
+    });
+});

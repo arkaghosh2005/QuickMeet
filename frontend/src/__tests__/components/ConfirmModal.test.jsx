@@ -1,10 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { ThemeProvider } from '../../context/ThemeContext';
 import ConfirmModal from '../../components/ConfirmModal';
+
+// Helper to render with ThemeProvider (ConfirmModal uses Button which uses useTheme)
+const renderWithTheme = (ui) => render(<ThemeProvider>{ui}</ThemeProvider>);
 
 describe('ConfirmModal', () => {
     it('returns null when not open', () => {
-        const { container } = render(
+        const { container } = renderWithTheme(
             <ConfirmModal
                 isOpen={false}
                 title="Test"
@@ -17,7 +21,7 @@ describe('ConfirmModal', () => {
     });
 
     it('renders title and message when open', () => {
-        render(
+        renderWithTheme(
             <ConfirmModal
                 isOpen={true}
                 title="Leave Meeting?"
@@ -36,7 +40,7 @@ describe('ConfirmModal', () => {
 
     it('calls onConfirm when confirm button clicked', () => {
         const onConfirm = vi.fn();
-        render(
+        renderWithTheme(
             <ConfirmModal
                 isOpen={true}
                 title="Test"
@@ -52,7 +56,7 @@ describe('ConfirmModal', () => {
 
     it('calls onCancel when cancel button clicked', () => {
         const onCancel = vi.fn();
-        render(
+        renderWithTheme(
             <ConfirmModal
                 isOpen={true}
                 title="Test"
@@ -67,7 +71,7 @@ describe('ConfirmModal', () => {
     });
 
     it('has proper aria attributes', () => {
-        render(
+        renderWithTheme(
             <ConfirmModal
                 isOpen={true}
                 title="Test"
@@ -80,4 +84,3 @@ describe('ConfirmModal', () => {
         expect(dialog).toHaveAttribute('aria-modal', 'true');
     });
 });
-

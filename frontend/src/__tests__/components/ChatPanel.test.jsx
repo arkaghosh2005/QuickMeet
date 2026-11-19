@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { ThemeProvider } from '../../context/ThemeContext';
 import ChatPanel from '../../components/ChatPanel';
 
 const mockMessages = [
@@ -7,9 +8,12 @@ const mockMessages = [
     { id: '2', senderName: 'Bob', message: 'Hi there!', timestamp: new Date() },
 ];
 
+// Helper to render with ThemeProvider (ChatPanel uses Button which uses useTheme)
+const renderWithTheme = (ui) => render(<ThemeProvider>{ui}</ThemeProvider>);
+
 describe('ChatPanel', () => {
     it('returns null when not open', () => {
-        const { container } = render(
+        const { container } = renderWithTheme(
             <ChatPanel
                 isOpen={false}
                 onClose={() => {}}
@@ -22,7 +26,7 @@ describe('ChatPanel', () => {
     });
 
     it('renders empty state when no messages', () => {
-        render(
+        renderWithTheme(
             <ChatPanel
                 isOpen={true}
                 onClose={() => {}}
@@ -35,7 +39,7 @@ describe('ChatPanel', () => {
     });
 
     it('renders messages', () => {
-        render(
+        renderWithTheme(
             <ChatPanel
                 isOpen={true}
                 onClose={() => {}}
@@ -50,7 +54,7 @@ describe('ChatPanel', () => {
 
     it('calls onSendMessage when form is submitted', () => {
         const onSend = vi.fn();
-        render(
+        renderWithTheme(
             <ChatPanel
                 isOpen={true}
                 onClose={() => {}}
@@ -65,9 +69,9 @@ describe('ChatPanel', () => {
         expect(onSend).toHaveBeenCalledWith('Test message');
     });
 
-    it('calls onClose when X is clicked', () => {
+    it('calls onClose when close button is clicked', () => {
         const onClose = vi.fn();
-        render(
+        renderWithTheme(
             <ChatPanel
                 isOpen={true}
                 onClose={onClose}
@@ -76,16 +80,14 @@ describe('ChatPanel', () => {
                 currentUserName="Alice"
             />
         );
-        // Find the close button (X icon button)
-        const closeBtn = screen.getByRole('button', { name: '' });
-        // The X button is the first button
+        // The close button is the first button in the panel (X icon)
         const buttons = screen.getAllByRole('button');
         fireEvent.click(buttons[0]);
         expect(onClose).toHaveBeenCalled();
     });
 
     it('has role="region" with aria-label', () => {
-        render(
+        renderWithTheme(
             <ChatPanel
                 isOpen={true}
                 onClose={() => {}}
@@ -97,4 +99,3 @@ describe('ChatPanel', () => {
         expect(screen.getByRole('region', { name: 'Meeting Chat' })).toBeInTheDocument();
     });
 });
-
