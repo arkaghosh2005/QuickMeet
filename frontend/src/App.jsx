@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import MeetingEntryPage from "./pages/MeetingEntryPage";
 import MeetingHistoryPage from "./pages/MeetingHistoryPage";
+import ScheduleMeetingPage from "./pages/ScheduleMeetingPage";
 import SettingsPage from "./pages/SettingsPage";
 import PreCallPage from "./pages/PreCallPage";
 import VideoCallPage from "./pages/VideoCallPage";
@@ -78,6 +79,14 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <MeetingHistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/schedule-meeting"
+          element={
+            <ProtectedRoute>
+              <ScheduleMeetingPage />
             </ProtectedRoute>
           }
         />

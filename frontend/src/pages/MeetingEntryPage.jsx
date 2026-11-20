@@ -90,7 +90,7 @@ const MeetingEntryPage = () => {
             icon: <Calendar className="w-8 h-8 text-purple-600" />,
             title: 'Schedule Meeting',
             description: 'Plan a meeting for later',
-            comingSoon: true,
+            onClick: () => navigate('/schedule-meeting'),
         },
         {
             icon: <Users className="w-8 h-8 text-orange-600" />,
