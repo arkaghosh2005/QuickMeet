@@ -9,19 +9,22 @@
  *
  * __tests__/
  * ├── components/
- * │   ├── Button.test.jsx         — Button component variants
- * │   ├── ChatPanel.test.jsx      — Chat panel rendering & interaction
- * │   ├── ConfirmModal.test.jsx   — Confirm modal behavior & a11y
- * │   ├── ErrorBoundary.test.jsx  — Error boundary fallback
- * │   └── Skeleton.test.jsx       — Skeleton loading component
+ * │   ├── Button.test.jsx           — Button component variants
+ * │   ├── ChatPanel.test.jsx        — Chat panel rendering & interaction
+ * │   ├── ConfirmModal.test.jsx     — Confirm modal behavior & a11y
+ * │   ├── DarkModeToggle.test.jsx   — Dark mode toggle rendering & a11y
+ * │   ├── ErrorBoundary.test.jsx    — Error boundary fallback
+ * │   ├── Input.test.jsx            — Input with icon, suffix, error, dark mode
+ * │   ├── ParticipantTile.test.jsx  — Tile rendering, video always in DOM, avatar
+ * │   └── Skeleton.test.jsx         — Skeleton loading component
  * ├── context/
- * │   └── ThemeContext.test.jsx   — Dark mode toggle + localStorage
+ * │   └── ThemeContext.test.jsx     — Dark mode toggle + localStorage
  * ├── pages/
- * │   ├── MeetingCode.test.js     — Meeting code format/validation
- * │   └── MeetingEntryPage.test.js — formatMeetingCode utility
+ * │   ├── MeetingCode.test.js       — Meeting code format/validation
+ * │   └── MeetingEntryPage.test.js  — formatMeetingCode utility
  * ├── utils/
- * │   └── mediaHelpers.test.js    — silence() and black() helpers
- * └── all.test.js                 — This documentation file
+ * │   └── mediaHelpers.test.js      — silence() and black() helpers
+ * └── all.test.js                   — This documentation file
  */
 
 // A minimal test so Vitest doesn't error on "No test suite found"
