@@ -239,9 +239,9 @@ const SettingsPage = () => {
 
                         {/* Header Section */}
                         <div className="text-center mb-8">
-                            <div className={`w-14 h-14 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 ${isDarkMode ? "bg-gray-700" : "bg-blue-100"
+                            <div className={`w-14 h-14 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 ${isDarkMode ? "bg-red-900/40" : "bg-red-100"
                                 }`}>
-                                <Settings className="w-7 h-7 sm:w-10 sm:h-10 text-blue-600" />
+                                <Settings className="w-7 h-7 sm:w-10 sm:h-10 text-red-600" />
                             </div>
                             <h1 className={`text-3xl sm:text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                                 Settings

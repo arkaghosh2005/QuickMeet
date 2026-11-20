@@ -1251,7 +1251,7 @@ const VideoCallPage = () => {
             return (
                 <video ref={localVideoRef} autoPlay muted playsInline
                     style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
-                    className="w-full h-full object-cover bg-black"
+                    className="w-full h-full object-contain bg-black"
                 />
             );
         }
@@ -1270,7 +1270,7 @@ const VideoCallPage = () => {
                     }
                 }}
                 style={{ transform: "scaleX(-1)", WebkitTransform: "scaleX(-1)" }}
-                className="w-full h-full object-cover bg-black"
+                className="w-full h-full object-contain bg-black"
             />
         );
     };
@@ -1491,7 +1491,7 @@ const VideoCallPage = () => {
                                     // Google Meet column pattern — fewer cols on mobile
                                     let cols;
                                     if (isMobile) {
-                                        cols = total <= 1 ? 1 : 2;
+                                        cols = total <= 2 ? 1 : 2;
                                     } else {
                                         if (total <= 1) cols = 1;
                                         else if (total <= 4) cols = 2;

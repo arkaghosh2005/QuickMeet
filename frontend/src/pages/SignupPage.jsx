@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Mail, Lock, Video, ArrowLeft } from "lucide-react";
+import { User, Mail, Lock, Video, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import SEO from "../components/SEO";
@@ -17,6 +17,8 @@ const SignupPage = () => {
 
     const [errors, setErrors] = useState({});
     const [successMessage, setSuccessMessage] = useState({});
+    const [showPassword, setShowPassword] = useState(false);
+    const [showRetypePassword, setShowRetypePassword] = useState(false);
     const { signup, loading } = useAuth();
     const { isDarkMode } = useTheme();
     const navigate = useNavigate();
@@ -202,23 +204,41 @@ const SignupPage = () => {
                             />
 
                             <Input
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 label="Password"
                                 placeholder="Create a password"
                                 value={formData.password}
                                 onChange={handleInputChange("password")}
                                 error={errors.password}
                                 icon={<Lock className="w-5 h-5 text-gray-400" />}
+                                suffix={
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className={`p-0.5 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                                    >
+                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                }
                             />
 
                             <Input
-                                type="password"
+                                type={showRetypePassword ? "text" : "password"}
                                 label="Retype Password"
                                 placeholder="Retype your password"
                                 value={formData.retypePassword}
                                 onChange={handleInputChange("retypePassword")}
                                 error={errors.retypePassword}
                                 icon={<Lock className="w-5 h-5 text-gray-400" />}
+                                suffix={
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowRetypePassword(!showRetypePassword)}
+                                        className={`p-0.5 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                                    >
+                                        {showRetypePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                }
                             />
 
                             <Button

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Video, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Video, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import SEO from '../components/SEO';
@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState({});
     const { login, loading } = useAuth();
     const { isDarkMode } = useTheme();
@@ -152,13 +153,22 @@ const LoginPage = () => {
                             />
 
                             <Input
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 label="Password"
                                 placeholder="Enter your password"
                                 value={password}
                                 onChange={handlePasswordChange}
                                 error={errors.password}
                                 icon={<Lock className="w-5 h-5 text-gray-400" />}
+                                suffix={
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className={`p-0.5 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                                    >
+                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                }
                             />
 
                             <Button

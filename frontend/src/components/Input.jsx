@@ -4,6 +4,7 @@ const Input = ({
     label,
     error,
     icon,
+    suffix,
     className = '',
     forceLightMode = false,
     ...props
@@ -27,6 +28,10 @@ const Input = ({
 
     if (icon) {
         baseInputClasses.push('pl-10');
+    }
+
+    if (suffix) {
+        baseInputClasses.push('pr-10');
     }
 
     if (error) {
@@ -58,6 +63,12 @@ const Input = ({
                     className={inputClasses}
                     {...props}
                 />
+
+                {suffix && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                        {suffix}
+                    </div>
+                )}
             </div>
 
             {error && (

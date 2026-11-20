@@ -14,17 +14,25 @@ const ParticipantTile = React.memo(({
             className={`relative bg-gray-800 rounded-xl overflow-hidden ${!tileStyle ? 'min-h-[120px] sm:min-h-[180px] md:min-h-0' : ''} ${spanClass}`}
             style={tileStyle || {}}
         >
-            {isVideoOn && participant.video ? (
-                getParticipantVideoElement(participant)
-            ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
-                    <div className={`${isVideoOn ? 'w-16 h-16 sm:w-24 sm:h-24' : 'w-14 h-14 sm:w-20 sm:h-20'} bg-gray-600 rounded-full flex items-center justify-center`}>
-                        <span className="text-xl sm:text-2xl font-bold text-white">
-                            {getInitials(participant.name)}
-                        </span>
-                    </div>
+            {/* Always render the <video> element so audio keeps playing even
+                when video is off. Hide it visually and overlay the avatar. */}
+            <div className="w-full h-full relative">
+                {/* Video element — hidden when video is off, but stays in DOM for audio */}
+                <div className={isVideoOn && participant.video ? "w-full h-full" : "w-0 h-0 overflow-hidden absolute"}>
+                    {getParticipantVideoElement(participant)}
                 </div>
-            )}
+
+                {/* Avatar overlay — shown when video is off */}
+                {!(isVideoOn && participant.video) && (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
+                        <div className={`${isVideoOn ? 'w-16 h-16 sm:w-24 sm:h-24' : 'w-14 h-14 sm:w-20 sm:h-20'} bg-gray-600 rounded-full flex items-center justify-center`}>
+                            <span className="text-xl sm:text-2xl font-bold text-white">
+                                {getInitials(participant.name)}
+                            </span>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 bg-black bg-opacity-50 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded text-xs sm:text-sm max-w-[calc(100%-0.5rem)] truncate">
                 {participant.name}
